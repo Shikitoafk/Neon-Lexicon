@@ -518,12 +518,14 @@ async function loadUserProfile() {
     if (data) {
       username = data.username || username;
       avatar = data.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-      highScore = data.score || 0;
+      highScore = parseInt(data.score, 10);
+      if (Number.isNaN(highScore)) highScore = 0;
 
       // Update UI panels with data loaded from profiles table
       document.getElementById('userName').innerText = username.toUpperCase();
       document.getElementById('userAvatar').src = avatar;
-      document.getElementById('highScoreCount').innerText = highScore;
+      const highScoreEl = document.getElementById('highScoreCount');
+      if (highScoreEl) highScoreEl.innerText = highScore;
     }
   } catch (e) {
     console.warn("Failed retrieving profiles record:", e.message);
