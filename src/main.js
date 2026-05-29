@@ -364,9 +364,33 @@ function setupSessionManager() {
     return;
   }
 
-  // Listen for authentication changes (fires on startup with INITIAL_SESSION)
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log("Auth State Changed Event:", event);
+  let sessionChecked = false;
+
+  // 5-second timeout fallback
+  const fallbackTimeout = setTimeout(() => {
+    if (!sessionChecked) {
+      console.warn("Supabase auth check timed out after 5 seconds. Falling back to main menu.");
+      sessionChecked = true;
+      currentUser = null;
+      initializeGame();
+      transitionToApp(false);
+      hideLoadingOverlay();
+    }
+  }, 5000);
+
+  // Directly check session and log the exact result
+  console.log("Starting Supabase getSession check...");
+  supabase.auth.getSession().then(async ({ data, error }) => {
+    console.log("Supabase getSession exact result:", { data, error });
+    if (sessionChecked) return;
+    sessionChecked = true;
+    clearTimeout(fallbackTimeout);
+
+    if (error) {
+      console.error("Supabase getSession error:", error);
+    }
+
+    const session = data ? data.session : null;
     if (session) {
       currentUser = session.user;
       initializeGame();
@@ -378,6 +402,45 @@ function setupSessionManager() {
       transitionToApp(false);
     }
     hideLoadingOverlay();
+  }).catch((err) => {
+    console.error("Supabase getSession exception:", err);
+    if (!sessionChecked) {
+      sessionChecked = true;
+      clearTimeout(fallbackTimeout);
+      currentUser = null;
+      initializeGame();
+      transitionToApp(false);
+      hideLoadingOverlay();
+    }
+  });
+
+  // Listen for subsequent authentication changes
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log("Auth State Changed Event:", event, session);
+    if (!sessionChecked) {
+      sessionChecked = true;
+      clearTimeout(fallbackTimeout);
+      if (session) {
+        currentUser = session.user;
+        initializeGame();
+        transitionToApp(true);
+        await loadUserProfile();
+      } else {
+        currentUser = null;
+        initializeGame();
+        transitionToApp(false);
+      }
+      hideLoadingOverlay();
+    } else {
+      if (session) {
+        currentUser = session.user;
+        transitionToApp(true);
+        await loadUserProfile();
+      } else {
+        currentUser = null;
+        transitionToApp(false);
+      }
+    }
   });
 }
 
