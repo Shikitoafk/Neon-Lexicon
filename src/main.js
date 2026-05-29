@@ -251,6 +251,11 @@ let buildingHolograms = [];
 
 // ==================== SECURE SESSION MANAGER & PROTECTED APP FLOW ====================
 function setupSessionManager() {
+  if (!supabase) {
+    showAlert("Database not connected. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables in Vercel/Local.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
+    return;
+  }
+
   // Listen for authentication changes
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth State Changed Event:", event);
@@ -726,6 +731,11 @@ function triggerCameraShake(intensity, duration) {
 
 // ==================== AUTHENTICATION ACTIONS ====================
 async function handleAuthAction(mode) {
+  if (!supabase) {
+    showAlert("Database not connected. Cannot perform auth actions.", "bg-red-950/40 border border-red-500/35 text-red-400 font-bold");
+    return;
+  }
+
   const email = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value.trim();
   const username = document.getElementById('authUsernameInput').value.trim();
@@ -1367,6 +1377,7 @@ function setupUIListeners() {
   // Logout button
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     SoundSynth.playClick();
+    if (!supabase) return;
     const { error } = await supabase.auth.signOut();
     if (error) console.error("SignOut error:", error.message);
   });
