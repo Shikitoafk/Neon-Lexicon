@@ -256,8 +256,8 @@ function setupSessionManager() {
     console.log("Auth State Changed Event:", event);
     if (session) {
       currentUser = session.user;
-      loadUserHighscore();
       transitionToApp(true);
+      await loadUserProfile();
     } else {
       currentUser = null;
       transitionToApp(false);
@@ -265,11 +265,11 @@ function setupSessionManager() {
   });
 
   // Verify current user session on load
-  supabase.auth.getUser().then(({ data: { user }, error }) => {
+  supabase.auth.getUser().then(async ({ data: { user } }) => {
     if (user) {
       currentUser = user;
-      loadUserHighscore();
       transitionToApp(true);
+      await loadUserProfile();
     } else {
       currentUser = null;
       transitionToApp(false);
@@ -287,14 +287,6 @@ function transitionToApp(isAuthenticated) {
     authScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
 
-    // Extract alias / display name
-    const meta = currentUser.user_metadata || {};
-    const username = meta.username || currentUser.email.split('@')[0] || 'Runner';
-    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-
-    document.getElementById('userName').innerText = username.toUpperCase();
-    document.getElementById('userAvatar').src = avatar;
-
     // Defeat HUD Status bar text
     document.getElementById('scoreSyncStatus').innerText = "PROGRESS AUTO-SYNCED TO PROFILE";
     document.getElementById('scoreSyncStatus').className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
@@ -304,22 +296,38 @@ function transitionToApp(isAuthenticated) {
   }
 }
 
-async function loadUserHighscore() {
+async function loadUserProfile() {
   if (!currentUser) return;
+  
+  // Set temporary fallback values based on metadata first so UI isn't empty while loading
+  const meta = currentUser.user_metadata || {};
+  let username = meta.username || currentUser.email.split('@')[0] || 'Runner';
+  let avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+  
+  document.getElementById('userName').innerText = username.toUpperCase();
+  document.getElementById('userAvatar').src = avatar;
+
   try {
+    // Load complete profile from profiles table by user.id as strictly requested
     const { data, error } = await supabase
       .from('profiles')
-      .select('score')
+      .select('username, avatar_url, score')
       .eq('id', currentUser.id)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
     if (data) {
+      username = data.username || username;
+      avatar = data.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
       highScore = data.score || 0;
+
+      // Update UI panels with data loaded from profiles table
+      document.getElementById('userName').innerText = username.toUpperCase();
+      document.getElementById('userAvatar').src = avatar;
       document.getElementById('highScoreCount').innerText = highScore;
     }
   } catch (e) {
-    console.warn("Failed retrieving user highscore:", e.message);
+    console.warn("Failed retrieving profiles record:", e.message);
   }
 }
 
