@@ -387,6 +387,7 @@ function setupSessionManager() {
       console.warn("Supabase auth check timed out after 5 seconds. Directing to login screen.");
       sessionChecked = true;
       currentUser = null;
+      initializeGame();
       transitionToApp(false);
       hideLoadingOverlay();
     }
@@ -412,7 +413,8 @@ function setupSessionManager() {
       await loadUserProfile();
     } else {
       currentUser = null;
-      // Do NOT initialize game here, wait for login or guest selection
+      // Boot engine + UI listeners for auth/guest; match only starts after they enter
+      initializeGame();
       transitionToApp(false);
     }
     hideLoadingOverlay();
@@ -422,6 +424,7 @@ function setupSessionManager() {
       sessionChecked = true;
       clearTimeout(fallbackTimeout);
       currentUser = null;
+      initializeGame();
       transitionToApp(false);
       hideLoadingOverlay();
     }
