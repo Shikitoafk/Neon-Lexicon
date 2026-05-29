@@ -331,38 +331,53 @@ let spawnInterval = 4000;
 let buildingBoundingBoxes = [];
 let buildingHolograms = [];
 
+// ==================== DEFERRED GAME INITIALIZATION (Ref-Lock Resolution) ====================
+let isGameInitialized = false;
+
+function initializeGame() {
+  if (isGameInitialized) return;
+  isGameInitialized = true;
+  
+  console.log("Initializing Three.js WebGL Engine, UI listeners, and game loop.");
+  init3D();
+  setupUIListeners();
+  animate();
+}
+
+function hideLoadingOverlay() {
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.classList.add('opacity-0');
+    setTimeout(() => {
+      loadingOverlay.classList.add('hidden');
+    }, 500);
+  }
+}
+
 // ==================== SECURE SESSION MANAGER & PROTECTED APP FLOW ====================
 function setupSessionManager() {
   if (!supabase) {
     showAlert("Database not connected. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables in Vercel/Local.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
+    initializeGame();
+    transitionToApp(false);
+    hideLoadingOverlay();
     return;
   }
 
-  // Listen for authentication changes
+  // Listen for authentication changes (fires on startup with INITIAL_SESSION)
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth State Changed Event:", event);
     if (session) {
       currentUser = session.user;
+      initializeGame();
       transitionToApp(true);
       await loadUserProfile();
     } else {
       currentUser = null;
+      initializeGame();
       transitionToApp(false);
     }
-  });
-
-  // Verify current user session on load
-  supabase.auth.getUser().then(async ({ data: { user } }) => {
-    if (user) {
-      currentUser = user;
-      transitionToApp(true);
-      await loadUserProfile();
-    } else {
-      currentUser = null;
-      transitionToApp(false);
-    }
-  }).catch(() => {
-    transitionToApp(false);
+    hideLoadingOverlay();
   });
 }
 
@@ -880,80 +895,116 @@ function showAlert(text, cssClass) {
 }
 
 // ==================== GLOBAL LEADERBOARD INTEGRATION ====================
+function renderLeaderboardRows(data) {
+  const rowsContainer = document.getElementById('leaderboardRows');
+  if (!rowsContainer) return;
+  
+  rowsContainer.innerHTML = '';
+  data.forEach((row, index) => {
+    const rank = index + 1;
+    const username = row.username || 'Anonymous Runner';
+    const avatar = row.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+    const highestScore = row.highest_score || 0;
+
+    let rankColorClass = 'text-slate-500';
+    let rowBorderClass = 'border-slate-900 bg-slate-950/40';
+    if (rank === 1) {
+      rankColorClass = 'text-brawlYellow font-logo text-xl';
+      rowBorderClass = 'border-brawlYellow/30 bg-amber-950/10 shadow-[0_0_10px_rgba(255,203,5,0.05)]';
+    } else if (rank === 2) {
+      rankColorClass = 'text-slate-200';
+      rowBorderClass = 'border-slate-400/25 bg-slate-900/20';
+    } else if (rank === 3) {
+      rankColorClass = 'text-amber-600';
+      rowBorderClass = 'border-amber-700/25 bg-orange-950/10';
+    }
+
+    const rowHtml = `
+      <div class="grid grid-cols-12 items-center px-4 py-2.5 border ${rowBorderClass} rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-slate-900/30">
+        <div class="col-span-2 font-logo text-lg ${rankColorClass}">#${rank}</div>
+        <div class="col-span-6 flex items-center gap-3">
+          <img src="${avatar}" class="w-7 h-7 rounded-full border border-purple-500/20 shadow-md select-none">
+          <span class="font-bold text-white text-sm truncate max-w-[160px] select-all">${username}</span>
+        </div>
+        <div class="col-span-4 text-right font-logo text-brawlYellow text-lg">${highestScore}</div>
+      </div>
+    `;
+    rowsContainer.insertAdjacentHTML('beforeend', rowHtml);
+  });
+}
+
+function renderLeaderboardEmpty() {
+  const rowsContainer = document.getElementById('leaderboardRows');
+  if (!rowsContainer) return;
+  rowsContainer.innerHTML = `
+    <div class="text-center py-8 text-slate-500 text-xs uppercase tracking-widest border border-slate-900 rounded-xl p-4 bg-slate-950/20">
+      No records found. Complete a match to set your score!
+    </div>
+  `;
+}
+
 async function fetchAndRenderLeaderboard() {
   const rowsContainer = document.getElementById('leaderboardRows');
+  if (!rowsContainer) return;
+
   rowsContainer.innerHTML = `
     <div class="text-center py-8 text-slate-500 text-sm">
       <span class="animate-pulse">RETRIEVING LEADERBOARD DATA...</span>
     </div>
   `;
 
+  // Fallback to guest offline mock leaderboard if Supabase is offline
+  if (!supabase) {
+    console.log("Supabase not connected. Rendering offline local leaderboard fallback.");
+    const guestHighScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
+    const guestUsername = storage.getItem('guest_username') || 'Guest Runner';
+    const mockData = [
+      { username: guestUsername, highest_score: guestHighScore },
+      { username: "CYBER_NINJA", highest_score: 120 },
+      { username: "NEON_HUNTER", highest_score: 95 },
+      { username: "MATRIX_GLITCH", highest_score: 70 }
+    ].sort((a, b) => b.highest_score - a.highest_score);
+
+    renderLeaderboardRows(mockData);
+    return;
+  }
+
   try {
-    // Try to fetch from view first
+    console.log("Fetching view leaderboard...");
     let { data, error } = await supabase
       .from('leaderboard')
-      .select('*')
+      .select('username, avatar_url, highest_score')
+      .order('highest_score', { ascending: false })
       .limit(10);
 
-    // Fallback directly to profiles if view query fails (highly robust!)
-    if (error || !data || data.length === 0) {
-      console.warn("View not ready. Falling back directly to profiles table.");
+    if (error) {
+      console.warn("Leaderboard view fetch error (falling back to profiles):", error);
+      
       const fallbackRes = await supabase
         .from('profiles')
-        .select('username, score')
+        .select('username, avatar_url, score')
         .order('score', { ascending: false })
         .limit(10);
       
-      if (fallbackRes.error) throw fallbackRes.error;
+      if (fallbackRes.error) {
+        console.error("Leaderboard profiles fallback also failed:", fallbackRes.error);
+        throw new Error(`Profiles fallback query failed: ${fallbackRes.error.message}`);
+      }
       
-      data = fallbackRes.data.map(item => ({
+      data = (fallbackRes.data || []).map(item => ({
         username: item.username,
+        avatar_url: item.avatar_url,
         highest_score: item.score
       }));
     }
 
     if (data && data.length > 0) {
-      rowsContainer.innerHTML = '';
-      data.forEach((row, index) => {
-        const rank = index + 1;
-        const username = row.username || 'Anonymous Runner';
-        const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-        const highestScore = row.highest_score || 0;
-
-        let rankColorClass = 'text-slate-500';
-        let rowBorderClass = 'border-slate-900 bg-slate-950/40';
-        if (rank === 1) {
-          rankColorClass = 'text-brawlYellow font-logo text-xl';
-          rowBorderClass = 'border-brawlYellow/30 bg-amber-950/10 shadow-[0_0_10px_rgba(255,203,5,0.05)]';
-        } else if (rank === 2) {
-          rankColorClass = 'text-slate-200';
-          rowBorderClass = 'border-slate-400/25 bg-slate-900/20';
-        } else if (rank === 3) {
-          rankColorClass = 'text-amber-600';
-          rowBorderClass = 'border-amber-700/25 bg-orange-950/10';
-        }
-
-        const rowHtml = `
-          <div class="grid grid-cols-12 items-center px-4 py-2.5 border ${rowBorderClass} rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-slate-900/30">
-            <div class="col-span-2 font-logo text-lg ${rankColorClass}">#${rank}</div>
-            <div class="col-span-6 flex items-center gap-3">
-              <img src="${avatar}" class="w-7 h-7 rounded-full border border-purple-500/20 shadow-md select-none">
-              <span class="font-bold text-white text-sm truncate max-w-[160px] select-all">${username}</span>
-            </div>
-            <div class="col-span-4 text-right font-logo text-brawlYellow text-lg">${highestScore}</div>
-          </div>
-        `;
-        rowsContainer.insertAdjacentHTML('beforeend', rowHtml);
-      });
+      renderLeaderboardRows(data);
     } else {
-      rowsContainer.innerHTML = `
-        <div class="text-center py-8 text-slate-500 text-xs uppercase tracking-widest border border-slate-900 rounded-xl p-4 bg-slate-950/20">
-          No records found. Complete a match to set your score!
-        </div>
-      `;
+      renderLeaderboardEmpty();
     }
   } catch (err) {
-    console.error("Leaderboard error:", err);
+    console.error("Leaderboard exception:", err);
     rowsContainer.innerHTML = `
       <div class="text-center py-8 text-brawlRed text-xs uppercase tracking-widest border border-brawlRed/20 rounded-xl p-4 bg-red-950/5">
         Failed to fetch leaderboard: ${err.message || 'Unknown network error'}
@@ -965,8 +1016,9 @@ async function fetchAndRenderLeaderboard() {
 // ==================== SECURE PROGRESS SYNCHRONIZER ====================
 async function syncScoreToSupabase() {
   const syncStatus = document.getElementById('scoreSyncStatus');
+  const finalScore = kills;
+
   if (!currentUser || currentUser.id === 'guest') {
-    const finalScore = kills;
     const guestHighScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
     if (finalScore > guestHighScore) {
       storage.setItem('guest_high_score', finalScore);
@@ -979,11 +1031,18 @@ async function syncScoreToSupabase() {
     return;
   }
 
+  // Only sync if finalScore is higher than the current highScore
+  if (finalScore <= highScore) {
+    console.log(`Skipping Supabase score sync: current match score (${finalScore}) is not greater than high score (${highScore})`);
+    syncStatus.innerText = "PROFILE SCORE AUTO-SYNCED";
+    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
+    return;
+  }
+
   syncStatus.innerText = "SYNCHRONIZING SCORE...";
   syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlCyan font-bold bg-[#050f16] px-3 py-2 rounded-lg text-center mt-3 border border-brawlCyan/20 select-none animate-pulse";
 
   try {
-    const finalScore = kills;
     const meta = currentUser.user_metadata || {};
     const username = meta.username || currentUser.email.split('@')[0] || 'Runner';
     
@@ -1003,10 +1062,8 @@ async function syncScoreToSupabase() {
     syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
     
     // Auto update top banner score
-    if (finalScore > highScore) {
-      highScore = finalScore;
-      document.getElementById('highScoreCount').innerText = highScore;
-    }
+    highScore = finalScore;
+    document.getElementById('highScoreCount').innerText = highScore;
   } catch (err) {
     console.error("Score sync error:", err);
     syncStatus.innerText = "FAILED TO UPSERT SCORE";
@@ -1348,6 +1405,9 @@ window.addEventListener('keydown', (e) => {
           currentLevel++;
           spawnInterval = Math.max(1500, spawnInterval - 700);
           triggerAnnounce(`LEVEL ${currentLevel}: HAZARD INCREASES!`);
+          syncScoreToSupabase();
+        } else if (kills > 0 && kills % 5 === 0) {
+          syncScoreToSupabase();
         }
 
         updateHUD();
@@ -1534,7 +1594,8 @@ function setupUIListeners() {
             // Also attempt to upsert to profiles table (in case RLS permits writes)
             await supabase.from('profiles').upsert({
               id: currentUser.id,
-              username: cleanedName
+              username: cleanedName,
+              score: highScore
             });
           } catch (e) {
             console.warn("Failed to update database profile record (metadata fallback updated):", e.message);
@@ -1600,13 +1661,6 @@ function setupUIListeners() {
 
 // ==================== INITIALIZATION ====================
 window.addEventListener('DOMContentLoaded', () => {
-  // Setup visual renderer and controls
-  init3D();
-  setupUIListeners();
-  
-  // Establish Secure Session hooks
+  // Establish Secure Session hooks (which will trigger initializeGame() once session is checked)
   setupSessionManager();
-
-  // Run game loops
-  animate();
 });

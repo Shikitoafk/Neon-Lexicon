@@ -42,6 +42,21 @@
 </head>
 <body class="font-scifi bg-[#03030c] text-white h-screen w-screen overflow-hidden relative select-none">
 
+  <!-- Persistent Fullscreen Loading Overlay (Z-Index: 100) -->
+  <div id="loadingOverlay" class="absolute inset-0 z-[100] bg-[#03030c] flex flex-col items-center justify-center pointer-events-auto transition-all duration-500">
+    <div class="text-center max-w-sm mx-auto flex flex-col items-center gap-4 select-none">
+      <h1 class="font-logo text-5xl tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-purple-400 drop-shadow-[0_0_15px_rgba(168,85,247,0.4)] animate-pulse">
+        NEON LEXICON
+      </h1>
+      <div class="flex items-center gap-2">
+        <span class="w-3.5 h-3.5 rounded-full bg-brawlCyan animate-ping"></span>
+        <p class="text-brawlCyan text-xs font-bold tracking-[0.25em] uppercase">
+          CONNECTING TO NEON GRID...
+        </p>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== THREE DISTINCT ARCHITECTURAL LAYERS ==================== -->
   
   <!-- LAYER 1: WebGL Canvas (Z-Index: 1) -->
