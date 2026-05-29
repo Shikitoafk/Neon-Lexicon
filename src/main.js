@@ -1223,23 +1223,37 @@ function updateHUD() {
   document.getElementById('hudLivesContainer').innerText = heartStr;
 }
 
+function resetGameState() {
+  isPlaying = false;
+  lives = 3;
+  kills = 0;
+  currentLevel = 1;
+  activeTarget = null;
+  spawnTimer = 0;
+  spawnInterval = 4000;
+  activeKeys = {};
+  shakeTimeLeft = 0;
+  shakeIntensity = 0;
+  vocabList = [...FALLBACK_VOCAB];
+
+  activeZombies.forEach(z => cleanupZombie(z));
+  activeZombies = [];
+
+  activeLasers.forEach(l => { if (l.mesh) scene.remove(l.mesh); });
+  activeLasers = [];
+
+  explosionParticles.forEach(p => { if (p.mesh) scene.remove(p.mesh); });
+  explosionParticles = [];
+}
+
 async function startMatch() {
+  resetGameState();
   SoundSynth.resumeContext();
 
   document.getElementById('mainMenu').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
 
-  lives = 3;
-  kills = 0;
-  currentLevel = 1;
-  activeTarget = null;
-  activeZombies = [];
-  activeLasers = [];
-  explosionParticles = [];
-  spawnInterval = 4000;
-  vocabList = [...FALLBACK_VOCAB];
-  spawnTimer = 0;
   createCity();
 
   playerPosition.set(0, 1.8, 0);
@@ -1292,28 +1306,26 @@ function triggerAnnounce(text) {
 }
 
 function endMatch() {
-  isPlaying = false;
+  const finalKills = kills;
+  const finalLevel = currentLevel;
+  resetGameState();
   controls.unlock();
   SoundSynth.playVictory();
 
   // Sync Defeat Screen info
-  document.getElementById('defeatKillsAmt').innerText = `${kills} Kills`;
-  document.getElementById('defeatDifficultyReached').innerText = `Level ${currentLevel}`;
+  document.getElementById('defeatKillsAmt').innerText = `${finalKills} Kills`;
+  document.getElementById('defeatDifficultyReached').innerText = `Level ${finalLevel}`;
 
   // Upsert progress score to Supabase
+  kills = finalKills;
   syncScoreToSupabase();
-
-  activeZombies.forEach(z => cleanupZombie(z));
-  activeZombies = [];
 
   document.getElementById('defeatOverlay').classList.remove('hidden');
 }
 
 function exitMatchToMenu() {
-  isPlaying = false;
+  resetGameState();
   controls.unlock();
-  activeZombies.forEach(z => cleanupZombie(z));
-  activeZombies = [];
 
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
