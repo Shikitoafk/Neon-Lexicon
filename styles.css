@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Rajdhani:wght@500;600;700&display=swap');
+
+/* Style Tokens */
+:root {
+  --font-logo: 'Lilita One', cursive;
+  --font-sci-fi: 'Rajdhani', sans-serif;
+  --color-primary: #ff3131; 
+  --color-secondary: #00f0ff;
+  --color-accent: #39ff14;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #03030c;
+  font-family: var(--font-sci-fi);
+  font-weight: 500;
+  user-select: none;
+}
+
+/* Three strict layers configuration */
+#webgl-canvas {
+  z-index: 1;
+}
+
+#css2d-renderer {
+  z-index: 2;
+  pointer-events: none !important;
+}
+
+#ui-layer {
+  z-index: 10;
+  pointer-events: none !important;
+}
+
+/* Reactivate pointer events for all interactive UI overlays */
+.pointer-events-auto,
+button,
+input,
+textarea,
+#mainMenu,
+#blockerOverlay,
+#settingsModal,
+#defeatOverlay {
+  pointer-events: auto !important;
+}
+
+/* CSS2D Word Labels Styles */
+.css2d-word-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sci-fi);
+  pointer-events: none !important;
+  user-select: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+}
+
+.css2d-pill {
+  background: rgba(10, 5, 5, 0.85);
+  border: 1px solid rgba(255, 49, 49, 0.35);
+  border-radius: 8px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  margin-bottom: 2px;
+}
+
+.css2d-pill.locked-target {
+  border-color: #ffcb05;
+  box-shadow: 0 0 12px rgba(255, 203, 5, 0.5);
+  transform: scale(1.1);
+  background: rgba(20, 15, 5, 0.95);
+}
+
+.css2d-en-text {
+  font-family: var(--font-logo);
+  font-size: 15px;
+  font-weight: normal;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+}
+
+.css2d-ru-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 49, 49, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.css2d-pill.locked-target .css2d-ru-text {
+  color: #ffcb05;
+}
+
+/* Typing Progress letters coloring */
+.letter-correct {
+  color: #39ff14 !important;
+  text-shadow: 0 0 5px rgba(57, 255, 20, 0.8);
+}
+
+.letter-remaining {
+  color: #ffffff !important;
+}
+
+/* Spooky ambient pulsing overlays */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+}
+
+.spooky-pulse {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+/* Reticle pulsing */
+.reticle-dot {
+  box-shadow: 0 0 8px #ff3131;
+}
+
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
