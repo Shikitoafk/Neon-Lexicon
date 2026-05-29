@@ -218,6 +218,7 @@ const storage = {
 
 // ==================== STATE MANAGEMENT ====================
 let highScore = 0;
+let currentUser = null; // Supabase OAuth logged-in user profile
 let dbSettings = {
   url: 'https://libevuarffovwgwggvar.supabase.co',
   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpYmV2dWFyZmZvdndnd2dndmFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNzg3NTYsImV4cCI6MjA5NDg1NDc1Nn0.OmIvH_RVA9iQ4k7zcBRewT7-aZSlR2Zi8BI4rMdy7Lg'
@@ -272,6 +273,9 @@ function initSupabase() {
       supabaseClient = window.supabase.createClient(dbSettings.url, dbSettings.key);
       statusAlert.innerText = "SUPABASE CLIENT CONNECTED";
       statusAlert.className = "text-xs p-2 bg-emerald-950 border border-emerald-500/30 text-emerald-400 rounded-lg text-center font-bold";
+      
+      // Wire up Auth state change listeners
+      setupAuthListener();
     } catch (e) {
       console.error("Supabase failed initialization:", e);
       statusAlert.innerText = "CLIENT CONFIGURATION ERROR";
@@ -312,6 +316,185 @@ async function fetchVocabulary() {
     return Promise.resolve(FALLBACK_VOCAB);
   }
 }
+
+// ==================== SUPABASE AUTHENTICATION SYSTEM ====================
+function setupAuthListener() {
+  if (!supabaseClient) return;
+
+  // Listen for auth events (Sign In, Sign Out, etc.)
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    console.log("Supabase Auth event:", event);
+    if (session) {
+      currentUser = session.user;
+      updateAuthUI(true);
+    } else {
+      currentUser = null;
+      updateAuthUI(false);
+    }
+  });
+
+  // Check initial session state on load
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      currentUser = session.user;
+      updateAuthUI(true);
+    } else {
+      currentUser = null;
+      updateAuthUI(false);
+    }
+  }).catch(err => {
+    console.warn("Failed checking initial session:", err);
+  });
+}
+
+function updateAuthUI(isLoggedIn) {
+  const loggedOutView = document.getElementById('loggedOutView');
+  const loggedInView = document.getElementById('loggedInView');
+  const playBtnContainer = document.getElementById('playBtnContainer');
+
+  if (isLoggedIn && currentUser) {
+    loggedOutView.classList.add('hidden');
+    loggedInView.classList.remove('hidden');
+    playBtnContainer.classList.remove('hidden');
+
+    // Extract user profile metadata
+    const meta = currentUser.user_metadata || {};
+    const username = meta.full_name || meta.user_name || meta.preferred_username || meta.name || currentUser.email || 'Cyber Runner';
+    const avatar = meta.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+
+    document.getElementById('userName').innerText = username;
+    document.getElementById('userAvatar').src = avatar;
+
+    // Sync match-defeat sync HUD status label
+    document.getElementById('scoreSyncStatus').innerText = "SCORE SAVING SYNCED TO LEADERBOARD";
+    document.getElementById('scoreSyncStatus').className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
+  } else {
+    loggedOutView.classList.remove('hidden');
+    loggedInView.classList.add('hidden');
+    
+    // Play button remains hidden for guests until they select "Play as Guest"
+    playBtnContainer.classList.add('hidden');
+
+    document.getElementById('scoreSyncStatus').innerText = "LOG IN TO SYNC SCORE GLOBAL";
+    document.getElementById('scoreSyncStatus').className = "text-[10px] uppercase tracking-widest text-slate-400 font-bold bg-[#090518] px-3 py-2 rounded-lg text-center mt-3 border border-purple-500/20 select-none";
+  }
+}
+
+// ==================== GLOBAL LEADERBOARD INTEGRATION ====================
+async function fetchAndRenderLeaderboard() {
+  const rowsContainer = document.getElementById('leaderboardRows');
+  rowsContainer.innerHTML = `
+    <div class="text-center py-8 text-slate-500 text-sm">
+      <span class="animate-pulse">RETRIEVING LEADERBOARD DATA...</span>
+    </div>
+  `;
+
+  if (!supabaseClient) {
+    rowsContainer.innerHTML = `
+      <div class="text-center py-8 text-slate-500 text-xs uppercase tracking-widest border border-slate-900 rounded-xl p-4 bg-slate-950/20">
+        Supabase is not connected. Configure client settings to sync the leaderboard.
+      </div>
+    `;
+    return;
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('leaderboard')
+      .select('*')
+      .limit(10);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      rowsContainer.innerHTML = '';
+      data.forEach((row, index) => {
+        const rank = index + 1;
+        const username = row.username || 'Anonymous Runner';
+        const avatar = row.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+        const highestScore = row.highest_score || 0;
+
+        // Visual medals for Top 3
+        let rankColorClass = 'text-slate-500';
+        let rowBorderClass = 'border-slate-900 bg-slate-950/40';
+        if (rank === 1) {
+          rankColorClass = 'text-brawlYellow font-logo text-xl';
+          rowBorderClass = 'border-brawlYellow/30 bg-amber-950/10 shadow-[0_0_10px_rgba(255,203,5,0.05)]';
+        } else if (rank === 2) {
+          rankColorClass = 'text-slate-200';
+          rowBorderClass = 'border-slate-400/25 bg-slate-900/20';
+        } else if (rank === 3) {
+          rankColorClass = 'text-amber-600';
+          rowBorderClass = 'border-amber-700/25 bg-orange-950/10';
+        }
+
+        const rowHtml = `
+          <div class="grid grid-cols-12 items-center px-4 py-2.5 border ${rowBorderClass} rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-slate-900/30">
+            <div class="col-span-2 font-logo text-lg ${rankColorClass}">#${rank}</div>
+            <div class="col-span-6 flex items-center gap-3">
+              <img src="${avatar}" class="w-7 h-7 rounded-full border border-purple-500/20 shadow-md select-none">
+              <span class="font-bold text-white text-sm truncate max-w-[160px] select-all">${username}</span>
+            </div>
+            <div class="col-span-4 text-right font-logo text-brawlYellow text-lg">${highestScore}</div>
+          </div>
+        `;
+        rowsContainer.insertAdjacentHTML('beforeend', rowHtml);
+      });
+    } else {
+      rowsContainer.innerHTML = `
+        <div class="text-center py-8 text-slate-500 text-xs uppercase tracking-widest border border-slate-900 rounded-xl p-4 bg-slate-950/20">
+          No records found. Complete a match to set your score!
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.error("Leaderboard error:", err);
+    rowsContainer.innerHTML = `
+      <div class="text-center py-8 text-brawlRed text-xs uppercase tracking-widest border border-brawlRed/20 rounded-xl p-4 bg-red-950/5">
+        Failed to fetch leaderboard: ${err.message || 'Unknown network error'}
+      </div>
+    `;
+  }
+}
+
+// ==================== SCORE WRITER SYSTEM ====================
+async function syncScoreToSupabase() {
+  const syncStatus = document.getElementById('scoreSyncStatus');
+  if (!supabaseClient || !currentUser) {
+    console.log("Playing as Guest: score not synchronized.");
+    syncStatus.innerText = "PLAYING AS GUEST: SCORE NOT SYNCED";
+    syncStatus.className = "text-[10px] uppercase tracking-widest text-slate-400 font-bold bg-[#090518] px-3 py-2 rounded-lg text-center mt-3 border border-purple-500/20 select-none";
+    return;
+  }
+
+  syncStatus.innerText = "SYNCING SCORE TO LEADERBOARD...";
+  syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlCyan font-bold bg-[#050f16] px-3 py-2 rounded-lg text-center mt-3 border border-brawlCyan/20 select-none animate-pulse";
+
+  try {
+    const finalScore = kills;
+    const totalWords = kills;
+    const { error } = await supabaseClient
+      .from('scores')
+      .insert([
+        {
+          user_id: currentUser.id,
+          score: finalScore,
+          words_typed: totalWords
+        }
+      ]);
+
+    if (error) throw error;
+
+    console.log("Successfully synchronized score to Supabase:", finalScore);
+    syncStatus.innerText = "SCORE SYNCED SUCCESSFULLY!";
+    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
+  } catch (err) {
+    console.error("Score sync error:", err);
+    syncStatus.innerText = "FAILED TO SYNC SCORE";
+    syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlRed font-bold bg-[#1a080f] px-3 py-2 rounded-lg text-center mt-3 border border-brawlRed/20 select-none";
+  }
+}
+
 
 // ==================== PROCEDURAL INFRASTRUCTURE BUILDER ====================
 function createCity() {
@@ -815,6 +998,9 @@ function endMatch() {
   document.getElementById('defeatKillsAmt').innerText = `${kills} Kills`;
   document.getElementById('defeatDifficultyReached').innerText = `Level ${currentLevel}`;
 
+  // Synchronize result to Supabase leaderboard
+  syncScoreToSupabase();
+
   // Clear zombies from scene
   activeZombies.forEach(z => cleanupZombie(z));
   activeZombies = [];
@@ -1204,6 +1390,52 @@ function setupUIListeners() {
     storage.setItem('supabase_key', '');
     initSupabase();
     document.getElementById('settingsModal').classList.add('hidden');
+    SoundSynth.playClick();
+  });
+
+  // OAuth Authentication buttons
+  document.getElementById('discordLoginBtn').addEventListener('click', async () => {
+    SoundSynth.playClick();
+    if (!supabaseClient) return alert("Supabase is not connected!");
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'discord',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) alert("Discord Login Error: " + error.message);
+  });
+
+  document.getElementById('githubLoginBtn').addEventListener('click', async () => {
+    SoundSynth.playClick();
+    if (!supabaseClient) return alert("Supabase is not connected!");
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) alert("GitHub Login Error: " + error.message);
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    SoundSynth.playClick();
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) console.error("SignOut error:", error.message);
+  });
+
+  // Play as Guest trigger
+  document.getElementById('playAsGuestBtn').addEventListener('click', () => {
+    SoundSynth.playClick();
+    document.getElementById('playBtnContainer').classList.remove('hidden');
+  });
+
+  // Leaderboard togglers
+  document.getElementById('leaderboardBtn').addEventListener('click', () => {
+    document.getElementById('leaderboardModal').classList.remove('hidden');
+    SoundSynth.playClick();
+    fetchAndRenderLeaderboard();
+  });
+
+  document.getElementById('closeLeaderboardBtn').addEventListener('click', () => {
+    document.getElementById('leaderboardModal').classList.add('hidden');
     SoundSynth.playClick();
   });
 

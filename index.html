@@ -59,12 +59,18 @@
     <!-- MAIN MENU LAYER (z-index: 10, visible initially) -->
     <div id="mainMenu" class="absolute inset-0 bg-gradient-to-br from-[#0c0524]/90 via-[#03030c]/95 to-[#050b1d]/90 backdrop-blur-md flex flex-col justify-between p-6 pointer-events-auto transition-all duration-300">
       
-      <!-- Top Header & Highscore -->
+      <!-- Top Header, Highscore & Leaderboard -->
       <div class="flex justify-between items-center w-full max-w-5xl mx-auto mt-4">
-        <div class="flex items-center gap-2 border border-purple-500/20 bg-purple-950/20 px-3 py-1.5 rounded-full backdrop-blur-sm">
-          <span class="text-purple-400">🏆</span>
-          <span class="text-xs uppercase tracking-widest text-purple-300 font-bold">HIGH SCORE:</span>
-          <span id="highScoreCount" class="text-brawlYellow font-logo text-lg">0</span>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 border border-purple-500/20 bg-purple-950/20 px-3 py-1.5 rounded-full backdrop-blur-sm">
+            <span class="text-purple-400">🏆</span>
+            <span class="text-xs uppercase tracking-widest text-purple-300 font-bold">HIGH SCORE:</span>
+            <span id="highScoreCount" class="text-brawlYellow font-logo text-lg">0</span>
+          </div>
+          
+          <button id="leaderboardBtn" class="flex items-center gap-1.5 border border-brawlCyan/20 bg-brawlCyan/5 hover:bg-brawlCyan/10 hover:border-brawlCyan/40 px-3.5 py-1.5 rounded-full backdrop-blur-sm text-brawlCyan text-xs uppercase tracking-widest font-bold transition-all shadow-md">
+            📊 LEADERBOARD
+          </button>
         </div>
         
         <!-- Settings Gear Icon -->
@@ -89,10 +95,47 @@
           Use <span class="text-brawlYellow font-bold">Arrow Keys to Move</span> and 
           <span class="text-brawlGreen font-bold">Type English Words</span> to blast them!
         </p>
+
+        <!-- Auth Section Panel -->
+        <div id="authSection" class="flex flex-col items-center gap-3 w-full max-w-sm mx-auto mt-6 bg-[#090518]/80 border border-purple-500/20 p-5 rounded-2xl backdrop-blur-md shadow-2xl">
+          <!-- Logged Out View -->
+          <div id="loggedOutView" class="w-full flex flex-col gap-2.5">
+            <div class="text-[10px] text-purple-300 text-center uppercase tracking-widest font-bold mb-1 select-none">
+              Save Scores & Compete Globally
+            </div>
+            
+            <div class="flex gap-2 w-full">
+              <button id="discordLoginBtn" class="flex-1 py-2.5 px-3 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md">
+                <span>💬</span> Discord
+              </button>
+              <button id="githubLoginBtn" class="flex-1 py-2.5 px-3 bg-[#24292F] hover:bg-[#1C2024] text-white border border-slate-800 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md">
+                <span>🐙</span> GitHub
+              </button>
+            </div>
+            
+            <button id="playAsGuestBtn" class="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] uppercase tracking-widest transition-all font-bold">
+              Play as Guest (Offline)
+            </button>
+          </div>
+
+          <!-- Logged In View -->
+          <div id="loggedInView" class="hidden w-full flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-brawlCyan/50 shadow-[0_0_8px_rgba(0,240,255,0.3)] select-none">
+              <div class="flex flex-col text-left">
+                <span class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Runner</span>
+                <span id="userName" class="text-white text-sm font-bold truncate max-w-[150px]">CyberRunner</span>
+              </div>
+            </div>
+            <button id="logoutBtn" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 hover:border-red-500/40 hover:text-red-400 text-slate-400 rounded-lg text-[10px] uppercase tracking-widest transition-all font-bold">
+              LOGOUT
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Play Button (Big, Pulsing, Cyberpunk) -->
-      <div class="flex flex-col items-center gap-4 mb-10 w-full">
+      <div id="playBtnContainer" class="hidden flex flex-col items-center gap-4 mb-10 w-full transition-all duration-300">
         <button id="playBtn" class="relative group px-12 py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-logo text-3xl tracking-widest rounded-xl shadow-[0_0_30px_rgba(168,85,247,0.45)] hover:shadow-[0_0_40px_rgba(168,85,247,0.65)] hover:scale-105 transition-all duration-200 pointer-events-auto border border-purple-400/40">
           ENTER THE CITY
           <span class="absolute -inset-0.5 bg-gradient-to-r from-brawlCyan to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></span>
@@ -139,6 +182,40 @@
               RESET FALLBACK
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD MODAL (hidden initially) -->
+    <div id="leaderboardModal" class="hidden absolute inset-0 z-20 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
+      <div class="w-full max-w-lg bg-slate-950 border border-brawlCyan/35 rounded-2xl p-6 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative flex flex-col max-h-[85vh]">
+        <button id="closeLeaderboardBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
+        
+        <h2 class="font-logo text-3xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-brawlCyan to-purple-400 mb-2 text-center drop-shadow-[0_2px_10px_rgba(0,240,255,0.3)] select-none">
+          TOP RUNNERS
+        </h2>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest text-center mb-4 font-bold select-none">Global Cyberpunk Leaderboard</div>
+        
+        <!-- Table container with custom scrollbar -->
+        <div class="flex-1 overflow-y-auto pr-1 space-y-2 max-h-[50vh] custom-scrollbar">
+          <!-- Table Header -->
+          <div class="grid grid-cols-12 px-3 py-1.5 text-[10px] uppercase tracking-widest text-slate-500 font-bold border-b border-slate-800 select-none">
+            <div class="col-span-2">Rank</div>
+            <div class="col-span-6">Runner</div>
+            <div class="col-span-4 text-right">Words Typed</div>
+          </div>
+          
+          <!-- Leaderboard Rows -->
+          <div id="leaderboardRows" class="space-y-1.5 pt-2">
+            <!-- Loading indicator -->
+            <div class="text-center py-8 text-slate-500 text-sm">
+              <span class="animate-pulse">RETRIEVING LEADERBOARD DATA...</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-800/80 text-center select-none">
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest">Compete hard. Surviving is key.</p>
         </div>
       </div>
     </div>
@@ -240,7 +317,7 @@
         
         <div class="w-20 h-0.5 bg-gradient-to-r from-transparent via-brawlRed to-transparent"></div>
         
-        <div class="space-y-3 my-2">
+        <div class="space-y-3 my-2 w-full">
           <div class="text-slate-500 text-[10px] uppercase tracking-widest font-bold select-none">
             Match Performance
           </div>
@@ -254,9 +331,14 @@
           <div id="defeatDifficultyReached" class="text-brawlCyan text-lg font-bold select-none tracking-widest uppercase">
             Level 1
           </div>
+          
+          <!-- Leaderboard sync status -->
+          <div id="scoreSyncStatus" class="text-[10px] uppercase tracking-widest text-slate-400 font-bold bg-[#090518] px-3 py-2 rounded-lg text-center mt-3 border border-purple-500/20 select-none">
+            Log in to sync score global
+          </div>
         </div>
 
-        <button id="defeatExitBtn" class="px-10 py-3 bg-gradient-to-r from-brawlRed to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-logo text-xl tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(255,49,49,0.35)] hover:scale-105">
+        <button id="defeatExitBtn" class="w-full py-3 bg-gradient-to-r from-brawlRed to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-logo text-xl tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(255,49,49,0.35)] hover:scale-105">
           RETURN TO PLAZA
         </button>
       </div>
