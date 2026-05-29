@@ -312,6 +312,12 @@ async function loadUserProfile() {
   document.getElementById('userName').innerText = username.toUpperCase();
   document.getElementById('userAvatar').src = avatar;
 
+  if (currentUser.id === 'guest') {
+    highScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
+    document.getElementById('highScoreCount').innerText = highScore;
+    return;
+  }
+
   try {
     // Load complete profile from profiles table by user.id as strictly requested
     const { data, error } = await supabase
@@ -764,14 +770,19 @@ async function handleAuthAction(mode) {
     if (error) {
       showAlert(`Reg Failed: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
     } else {
-      showAlert("Sign Up Successful! Authorizing profile...", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
-      // Create their initial profile index in profiles
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          username: username,
-          score: 0
-        });
+      if (data && data.session) {
+        showAlert("Sign Up Successful! Authorizing profile...", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
+        try {
+          await supabase.from('profiles').upsert({
+            id: data.user.id,
+            username: username,
+            score: 0
+          });
+        } catch (e) {
+          console.warn("Failed profiles upsert (trigger might have handled it):", e);
+        }
+      } else {
+        showAlert("Registration successful! Please check your email to confirm your account, then log in.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
       }
     }
   } else {
@@ -881,9 +892,17 @@ async function fetchAndRenderLeaderboard() {
 // ==================== SECURE PROGRESS SYNCHRONIZER ====================
 async function syncScoreToSupabase() {
   const syncStatus = document.getElementById('scoreSyncStatus');
-  if (!currentUser) {
-    syncStatus.innerText = "GUEST SESSIONS CANNOT SAVE SCORE";
-    syncStatus.className = "text-[10px] uppercase tracking-widest text-slate-400 font-bold bg-[#090518] px-3 py-2 rounded-lg text-center mt-3 border border-purple-500/20 select-none";
+  if (!currentUser || currentUser.id === 'guest') {
+    const finalScore = kills;
+    const guestHighScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
+    if (finalScore > guestHighScore) {
+      storage.setItem('guest_high_score', finalScore);
+      highScore = finalScore;
+      const hsCountEl = document.getElementById('highScoreCount');
+      if (hsCountEl) hsCountEl.innerText = highScore;
+    }
+    syncStatus.innerText = "GUEST SCORE SAVED LOCALLY";
+    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
     return;
   }
 
@@ -941,6 +960,9 @@ async function startMatch() {
   document.getElementById('mainMenu').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
+  
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) settingsBtn.classList.add('hidden');
 
   lives = 3;
   kills = 0;
@@ -1000,6 +1022,9 @@ function endMatch() {
   controls.unlock();
   SoundSynth.playVictory();
 
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) settingsBtn.classList.remove('hidden');
+
   // Sync Defeat Screen info
   document.getElementById('defeatKillsAmt').innerText = `${kills} Kills`;
   document.getElementById('defeatDifficultyReached').innerText = `Level ${currentLevel}`;
@@ -1018,6 +1043,10 @@ function exitMatchToMenu() {
   controls.unlock();
   activeZombies.forEach(z => cleanupZombie(z));
   activeZombies = [];
+  
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) settingsBtn.classList.remove('hidden');
+
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
   document.getElementById('mainMenu').classList.remove('hidden');
@@ -1350,89 +1379,150 @@ function setupUIListeners() {
   const usernameInputWrapper = document.getElementById('usernameInputWrapper');
   const authSubmitBtn = document.getElementById('authSubmitBtn');
 
-  tabLoginBtn.addEventListener('click', () => {
-    SoundSynth.playClick();
-    authMode = 'login';
-    tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-    tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-    usernameInputWrapper.classList.add('hidden');
-    authSubmitBtn.innerText = "AUTHENTICATE ACCESS";
-  });
+  if (tabLoginBtn) {
+    tabLoginBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      authMode = 'login';
+      tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
+      if (tabRegisterBtn) tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
+      if (usernameInputWrapper) usernameInputWrapper.classList.add('hidden');
+      if (authSubmitBtn) authSubmitBtn.innerText = "AUTHENTICATE ACCESS";
+    });
+  }
 
-  tabRegisterBtn.addEventListener('click', () => {
-    SoundSynth.playClick();
-    authMode = 'register';
-    tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-    tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-    usernameInputWrapper.classList.remove('hidden');
-    authSubmitBtn.innerText = "INITIALIZE PROFILE";
-  });
+  if (tabRegisterBtn) {
+    tabRegisterBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      authMode = 'register';
+      tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
+      if (tabLoginBtn) tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
+      if (usernameInputWrapper) usernameInputWrapper.classList.remove('hidden');
+      if (authSubmitBtn) authSubmitBtn.innerText = "INITIALIZE PROFILE";
+    });
+  }
 
   // Submit credentials button
-  authSubmitBtn.addEventListener('click', () => {
-    SoundSynth.playClick();
-    handleAuthAction(authMode);
-  });
+  if (authSubmitBtn) {
+    authSubmitBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      handleAuthAction(authMode);
+    });
+  }
+
+  // Guest Play Button
+  const guestPlayBtn = document.getElementById('guestPlayBtn');
+  if (guestPlayBtn) {
+    guestPlayBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      currentUser = {
+        id: 'guest',
+        email: 'guest@matrix.net',
+        user_metadata: { username: 'Guest Runner' }
+      };
+      transitionToApp(true);
+      loadUserProfile();
+    });
+  }
 
   // Logout button
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    SoundSynth.playClick();
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) console.error("SignOut error:", error.message);
-  });
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      SoundSynth.playClick();
+      if (!supabase || (currentUser && currentUser.id === 'guest')) {
+        currentUser = null;
+        transitionToApp(false);
+        return;
+      }
+      const { error } = await supabase.auth.signOut();
+      if (error) console.error("SignOut error:", error.message);
+    });
+  }
 
   // Settings
-  document.getElementById('settingsBtn').addEventListener('click', () => {
-    document.getElementById('settingsModal').classList.remove('hidden');
-    SoundSynth.playClick();
-  });
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      const settingsModal = document.getElementById('settingsModal');
+      if (settingsModal) settingsModal.classList.remove('hidden');
+      SoundSynth.playClick();
+    });
+  }
 
-  document.getElementById('closeSettingsBtn').addEventListener('click', () => {
-    document.getElementById('settingsModal').classList.add('hidden');
-    SoundSynth.playClick();
-  });
+  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => {
+      const settingsModal = document.getElementById('settingsModal');
+      if (settingsModal) settingsModal.classList.add('hidden');
+      SoundSynth.playClick();
+    });
+  }
 
-  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-    const url = document.getElementById('supabaseUrlInput').value.trim();
-    const key = document.getElementById('supabaseKeyInput').value.trim();
-    storage.setItem('supabase_url', url);
-    storage.setItem('supabase_key', key);
-    window.location.reload(); // Reload to reinit Supabase
-  });
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  if (saveSettingsBtn) {
+    saveSettingsBtn.addEventListener('click', () => {
+      const urlInput = document.getElementById('supabaseUrlInput');
+      const keyInput = document.getElementById('supabaseKeyInput');
+      const url = urlInput ? urlInput.value.trim() : '';
+      const key = keyInput ? keyInput.value.trim() : '';
+      storage.setItem('supabase_url', url);
+      storage.setItem('supabase_key', key);
+      window.location.reload(); // Reload to reinit Supabase
+    });
+  }
 
-  document.getElementById('resetSettingsBtn').addEventListener('click', () => {
-    storage.setItem('supabase_url', '');
-    storage.setItem('supabase_key', '');
-    window.location.reload();
-  });
+  const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+  if (resetSettingsBtn) {
+    resetSettingsBtn.addEventListener('click', () => {
+      storage.setItem('supabase_url', '');
+      storage.setItem('supabase_key', '');
+      window.location.reload();
+    });
+  }
 
   // Leaderboard togglers
-  document.getElementById('leaderboardBtn').addEventListener('click', () => {
-    document.getElementById('leaderboardModal').classList.remove('hidden');
-    SoundSynth.playClick();
-    fetchAndRenderLeaderboard();
-  });
+  const leaderboardBtn = document.getElementById('leaderboardBtn');
+  if (leaderboardBtn) {
+    leaderboardBtn.addEventListener('click', () => {
+      const leaderboardModal = document.getElementById('leaderboardModal');
+      if (leaderboardModal) leaderboardModal.classList.remove('hidden');
+      SoundSynth.playClick();
+      fetchAndRenderLeaderboard();
+    });
+  }
 
-  document.getElementById('closeLeaderboardBtn').addEventListener('click', () => {
-    document.getElementById('leaderboardModal').classList.add('hidden');
-    SoundSynth.playClick();
-  });
+  const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+  if (closeLeaderboardBtn) {
+    closeLeaderboardBtn.addEventListener('click', () => {
+      const leaderboardModal = document.getElementById('leaderboardModal');
+      if (leaderboardModal) leaderboardModal.classList.add('hidden');
+      SoundSynth.playClick();
+    });
+  }
 
   // Enter city / Start Match
-  document.getElementById('playBtn').addEventListener('click', () => {
-    startMatch();
-  });
+  const playBtn = document.getElementById('playBtn');
+  if (playBtn) {
+    playBtn.addEventListener('click', () => {
+      startMatch();
+    });
+  }
 
   // Resume blocker lock button
-  document.getElementById('resumeLockBtn').addEventListener('click', () => {
-    controls.lock();
-  });
+  const resumeLockBtn = document.getElementById('resumeLockBtn');
+  if (resumeLockBtn) {
+    resumeLockBtn.addEventListener('click', () => {
+      controls.lock();
+    });
+  }
 
   // surrenders
-  document.getElementById('exitMatchBtn').addEventListener('click', () => {
-    exitMatchToMenu();
-  });
+  const exitMatchBtn = document.getElementById('exitMatchBtn');
+  if (exitMatchBtn) {
+    exitMatchBtn.addEventListener('click', () => {
+      exitMatchToMenu();
+    });
+  }
 
   document.getElementById('defeatExitBtn').addEventListener('click', () => {
     document.getElementById('defeatOverlay').classList.add('hidden');

@@ -53,6 +53,11 @@
   <!-- LAYER 3: User Interface Overlay Layer (Z-Index: 10, pointer-events: none) -->
   <div id="ui-layer" class="absolute inset-0 w-full h-full pointer-events-none z-10 flex flex-col justify-between">
     
+    <!-- Persistent Settings Gear in Top Right of UI Overlay (Z-index: 50, active when not in active match) -->
+    <button id="settingsBtn" class="absolute top-4 right-4 z-50 p-2.5 bg-slate-900/90 border border-purple-500/20 hover:border-brawlCyan/50 hover:text-brawlCyan text-slate-400 rounded-xl text-xs uppercase tracking-widest font-bold transition-all pointer-events-auto backdrop-blur-md shadow-lg flex items-center gap-1.5" title="Database Configuration">
+      ⚙️ DATABASE CONFIG
+    </button>
+
     <!-- AUTH SCREEN LAYER (z-index: 15, visible by default if guest) -->
     <div id="authScreen" class="absolute inset-0 z-15 bg-gradient-to-br from-[#0c0524]/95 via-[#03030c]/98 to-[#050b1d]/95 flex flex-col items-center justify-center p-6 pointer-events-auto transition-all duration-300">
       
@@ -103,6 +108,13 @@
           <button id="authSubmitBtn" class="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-logo text-lg tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-[1.02]">
             AUTHENTICATE ACCESS
           </button>
+
+          <!-- Play as Guest Option -->
+          <div class="flex items-center justify-center pt-2">
+            <button id="guestPlayBtn" class="text-xs text-brawlCyan/85 hover:text-brawlCyan hover:underline uppercase tracking-widest font-bold transition-all cursor-pointer">
+              Play as Guest (Offline)
+            </button>
+          </div>
         </div>
       </div>
 
