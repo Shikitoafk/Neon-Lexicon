@@ -222,6 +222,7 @@ let currentUser = null;
 // ==================== THREE.JS 3D VARIABLES ====================
 let scene, camera, renderer, labelRenderer;
 let controls;
+let cityGroup;
 let clock = new THREE.Clock();
 
 // ==================== SHARED GEOMETRIES & MATERIALS POOL (Lag Elimination) ====================
@@ -234,6 +235,7 @@ let droneCoreMaterials = {};
 let droneProjMaterials = {};
 let laserMatShared;
 let explosionMaterials = {};
+let holoMaterials = {};
 
 function initSharedAssets() {
   boxGeoShared = new THREE.BoxGeometry(1, 1, 1);
@@ -261,6 +263,14 @@ function initSharedAssets() {
   neonColors.forEach(color => {
     neonMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
     explosionMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
+    
+    // Pre-allocate transparent wireframe materials for skyscraper holograms to prevent laggy shader compilations
+    holoMaterials[color] = new THREE.MeshBasicMaterial({ 
+      color: color, 
+      wireframe: true, 
+      transparent: true, 
+      opacity: 0.65 
+    });
   });
 
   wallMaterial = new THREE.MeshStandardMaterial({ color: 0x04020a, roughness: 0.9 });
@@ -385,6 +395,10 @@ async function loadUserProfile() {
   document.getElementById('userAvatar').src = avatar;
 
   if (currentUser.id === 'guest') {
+    username = storage.getItem('guest_username') || 'Guest';
+    avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+    document.getElementById('userName').innerText = username.toUpperCase();
+    document.getElementById('userAvatar').src = avatar;
     highScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
     document.getElementById('highScoreCount').innerText = highScore;
     return;
@@ -416,33 +430,24 @@ async function loadUserProfile() {
 
 // ==================== PROCEDURAL INFRASTRUCTURE BUILDER ====================
 function createCity() {
-  // Clear scene properly
-  while (scene.children.length > 0) { 
-    scene.remove(scene.children[0]); 
+  // Clear CSS2D labels DOM to avoid memory leak build-ups
+  const css2dContainer = document.getElementById('css2d-renderer');
+  if (css2dContainer) {
+    css2dContainer.innerHTML = '';
+    if (labelRenderer && labelRenderer.domElement) {
+      css2dContainer.appendChild(labelRenderer.domElement);
+    }
   }
+
+  // Clear cityGroup elements safely
+  if (cityGroup) {
+    while (cityGroup.children.length > 0) {
+      cityGroup.remove(cityGroup.children[0]);
+    }
+  }
+
   buildingBoundingBoxes = [];
   buildingHolograms = [];
-
-  const hemiLight = new THREE.HemisphereLight(0xa855f7, 0x1e1b4b, 1.15);
-  scene.add(hemiLight);
-
-  const moonLight = new THREE.DirectionalLight(0xf43f5e, 1.6);
-  moonLight.position.set(40, 80, 40);
-  scene.add(moonLight);
-
-  const floorGeo = new THREE.PlaneGeometry(300, 300);
-  const floorMat = new THREE.MeshStandardMaterial({ 
-    color: 0x070311, 
-    roughness: 0.35, 
-    metalness: 0.85 
-  });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-
-  const gridHelper = new THREE.GridHelper(300, 60, 0x00f0ff, 0xa855f7);
-  gridHelper.position.y = 0.02;
-  scene.add(gridHelper);
 
   const neonColors = [0x00f0ff, 0xff007f, 0x39ff14, 0xffcb05];
   
@@ -465,7 +470,7 @@ function createCity() {
     }
 
     building.position.set(bx, h / 2, bz);
-    scene.add(building);
+    cityGroup.add(building);
 
     // Bounding Box (recomputes based on current scale)
     const box = new THREE.Box3().setFromObject(building);
@@ -484,7 +489,7 @@ function createCity() {
       const pipe = new THREE.Mesh(boxGeoShared, pipeMat);
       pipe.scale.set(0.4, h, 0.4);
       pipe.position.set(bx + offset.x, h / 2, bz + offset.z);
-      scene.add(pipe);
+      cityGroup.add(pipe);
     });
 
     // Window bands - Reuse boxGeoShared and neonMaterials
@@ -497,21 +502,16 @@ function createCity() {
       const band = new THREE.Mesh(boxGeoShared, winMat);
       band.scale.set(w + 0.1, 0.45, d + 0.1);
       band.position.set(bx, bandHeight, bz);
-      scene.add(band);
+      cityGroup.add(band);
     }
 
-    // Top Holograms - Reuse octaGeoShared and a transparent variant of pipeMat
+    // Top Holograms - Reuse octaGeoShared and pre-allocated holoMaterials
     if (h > 45) {
-      const holoMat = new THREE.MeshBasicMaterial({ 
-        color: pipeColor, 
-        wireframe: true, 
-        transparent: true, 
-        opacity: 0.65 
-      });
+      const holoMat = holoMaterials[pipeColor];
       const holo = new THREE.Mesh(octaGeoShared, holoMat);
       holo.scale.set(2.2, 2.2, 2.2);
       holo.position.set(bx, h + 3.5, bz);
-      scene.add(holo);
+      cityGroup.add(holo);
       buildingHolograms.push(holo);
     }
   }
@@ -520,46 +520,46 @@ function createCity() {
   const northWall = new THREE.Mesh(boxGeoShared, wallMaterial);
   northWall.scale.set(300, 20, 4);
   northWall.position.set(0, 10, -150);
-  scene.add(northWall);
+  cityGroup.add(northWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(northWall));
 
   const northWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
   northWallNeon.scale.set(300, 0.6, 4.2);
   northWallNeon.position.set(0, 18, -150);
-  scene.add(northWallNeon);
+  cityGroup.add(northWallNeon);
 
   const southWall = new THREE.Mesh(boxGeoShared, wallMaterial);
   southWall.scale.set(300, 20, 4);
   southWall.position.set(0, 10, 150);
-  scene.add(southWall);
+  cityGroup.add(southWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(southWall));
 
   const southWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
   southWallNeon.scale.set(300, 0.6, 4.2);
   southWallNeon.position.set(0, 18, 150);
-  scene.add(southWallNeon);
+  cityGroup.add(southWallNeon);
 
   const eastWall = new THREE.Mesh(boxGeoShared, wallMaterial);
   eastWall.scale.set(4, 20, 300);
   eastWall.position.set(150, 10, 0);
-  scene.add(eastWall);
+  cityGroup.add(eastWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(eastWall));
 
   const eastWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
   eastWallNeon.scale.set(4.2, 0.6, 300);
   eastWallNeon.position.set(150, 18, 0);
-  scene.add(eastWallNeon);
+  cityGroup.add(eastWallNeon);
 
   const westWall = new THREE.Mesh(boxGeoShared, wallMaterial);
   westWall.scale.set(4, 20, 300);
   westWall.position.set(-150, 10, 0);
-  scene.add(westWall);
+  cityGroup.add(westWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(westWall));
 
   const westWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
   westWallNeon.scale.set(4.2, 0.6, 300);
   westWallNeon.position.set(-150, 18, 0);
-  scene.add(westWallNeon);
+  cityGroup.add(westWallNeon);
 }
 
 // ==================== ENGINE SETUP ====================
@@ -583,6 +583,32 @@ function init3D() {
   labelRenderer.domElement.style.top = '0px';
   labelRenderer.domElement.style.pointerEvents = 'none';
   document.getElementById('css2d-renderer').appendChild(labelRenderer.domElement);
+
+  // Initialize Persistent City Group
+  cityGroup = new THREE.Group();
+  scene.add(cityGroup);
+
+  // Set up environmental lights once globally (prevents memory leak compile lag)
+  const hemiLight = new THREE.HemisphereLight(0xa855f7, 0x1e1b4b, 1.15);
+  scene.add(hemiLight);
+
+  const moonLight = new THREE.DirectionalLight(0xf43f5e, 1.6);
+  moonLight.position.set(40, 80, 40);
+  scene.add(moonLight);
+
+  const floorGeo = new THREE.PlaneGeometry(300, 300);
+  const floorMat = new THREE.MeshStandardMaterial({ 
+    color: 0x070311, 
+    roughness: 0.35, 
+    metalness: 0.85 
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  const gridHelper = new THREE.GridHelper(300, 60, 0x00f0ff, 0xa855f7);
+  gridHelper.position.y = 0.02;
+  scene.add(gridHelper);
 
   // Controls
   controls = new THREE.PointerLockControls(camera, renderer.domElement);
@@ -1474,6 +1500,50 @@ function setupUIListeners() {
       }
       const { error } = await supabase.auth.signOut();
       if (error) console.error("SignOut error:", error.message);
+    });
+  }
+
+  // Interactive profile username customizer (allows editing guest or auth usernames on click)
+  const userProfileBadge = document.getElementById('userProfileBadge');
+  if (userProfileBadge) {
+    userProfileBadge.style.cursor = 'pointer';
+    userProfileBadge.title = "Click to change cyber alias";
+    userProfileBadge.addEventListener('click', async () => {
+      const nameEl = document.getElementById('userName');
+      const avatarEl = document.getElementById('userAvatar');
+      if (!nameEl) return;
+      
+      const currentName = nameEl.innerText;
+      const newName = prompt("Enter your new cyber alias:", currentName);
+      if (newName && newName.trim() !== '' && newName.trim().toUpperCase() !== currentName) {
+        const cleanedName = newName.trim().substring(0, 15);
+        nameEl.innerText = cleanedName.toUpperCase();
+        if (avatarEl) {
+          avatarEl.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanedName)}`;
+        }
+        
+        if (supabase && currentUser && currentUser.id !== 'guest') {
+          try {
+            // Update in Supabase Auth user_metadata (always allowed for authenticated users)
+            const { data, error } = await supabase.auth.updateUser({
+              data: { username: cleanedName }
+            });
+            if (error) throw error;
+            currentUser = data.user;
+            
+            // Also attempt to upsert to profiles table (in case RLS permits writes)
+            await supabase.from('profiles').upsert({
+              id: currentUser.id,
+              username: cleanedName
+            });
+          } catch (e) {
+            console.warn("Failed to update database profile record (metadata fallback updated):", e.message);
+          }
+        } else {
+          // Store guest username prefix locally in localStorage
+          storage.setItem('guest_username', cleanedName);
+        }
+      }
     });
   }
 
