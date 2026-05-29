@@ -224,6 +224,78 @@ let scene, camera, renderer, labelRenderer;
 let controls;
 let clock = new THREE.Clock();
 
+// ==================== SHARED GEOMETRIES & MATERIALS POOL (Lag Elimination) ====================
+let boxGeoShared, octaGeoShared, torusGeoShared, coneGeoShared, ringGeoShared, laserGeoShared;
+let buildingBaseMaterials = [];
+let neonMaterials = {};
+let wallMaterial, wallNeonMaterial;
+let droneLegMaterial, droneEyeMaterial;
+let droneCoreMaterials = {};
+let droneProjMaterials = {};
+let laserMatShared;
+let explosionMaterials = {};
+
+function initSharedAssets() {
+  boxGeoShared = new THREE.BoxGeometry(1, 1, 1);
+  octaGeoShared = new THREE.OctahedronGeometry(1, 0);
+  torusGeoShared = new THREE.TorusGeometry(0.62, 0.06, 6, 18);
+  coneGeoShared = new THREE.ConeGeometry(0.06, 0.7, 4);
+  ringGeoShared = new THREE.RingGeometry(0.1, 0.65, 16);
+  ringGeoShared.rotateX(-Math.PI / 2);
+  
+  laserGeoShared = new THREE.CylinderGeometry(1, 1, 1, 6);
+  laserGeoShared.rotateX(Math.PI / 2);
+  laserMatShared = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+
+  const buildingBaseColors = [
+    0x0a1622, 0x130a24, 0x24061a, 0x0b1c16, 0x101322
+  ];
+  buildingBaseMaterials = buildingBaseColors.map(color => new THREE.MeshStandardMaterial({
+    color: color,
+    roughness: 0.22,
+    metalness: 0.88,
+    flatShading: true
+  }));
+
+  const neonColors = [0x00f0ff, 0xff007f, 0x39ff14, 0xffcb05, 0xef4444];
+  neonColors.forEach(color => {
+    neonMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
+    explosionMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
+  });
+
+  wallMaterial = new THREE.MeshStandardMaterial({ color: 0x04020a, roughness: 0.9 });
+  wallNeonMaterial = new THREE.MeshBasicMaterial({ color: 0xff007f });
+  
+  droneLegMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1a24,
+    roughness: 0.5,
+    metalness: 0.8
+  });
+  droneEyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+  const lvlColors = {
+    1: 0x39ff14, // Green
+    2: 0xffcb05, // Yellow
+    3: 0xff007f  // Pink
+  };
+  Object.entries(lvlColors).forEach(([lvl, color]) => {
+    droneCoreMaterials[lvl] = new THREE.MeshStandardMaterial({
+      color: color,
+      emissive: color,
+      emissiveIntensity: 1.45,
+      roughness: 0.15,
+      metalness: 0.9,
+      flatShading: true
+    });
+    droneProjMaterials[lvl] = new THREE.MeshBasicMaterial({
+      color: color,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.4
+    });
+  });
+}
+
 // Game settings
 let isPlaying = false;
 let lives = 3;
@@ -344,6 +416,7 @@ async function loadUserProfile() {
 
 // ==================== PROCEDURAL INFRASTRUCTURE BUILDER ====================
 function createCity() {
+  // Clear scene properly
   while (scene.children.length > 0) { 
     scene.remove(scene.children[0]); 
   }
@@ -378,19 +451,10 @@ function createCity() {
     const h = 20 + Math.random() * 55;
     const d = 12 + Math.random() * 16;
 
-    const bGeo = new THREE.BoxGeometry(w, h, d);
-    const buildingBaseColors = [
-      0x0a1622, 0x130a24, 0x24061a, 0x0b1c16, 0x101322
-    ];
-    const baseColor = buildingBaseColors[Math.floor(Math.random() * buildingBaseColors.length)];
-
-    const bMat = new THREE.MeshStandardMaterial({
-      color: baseColor,
-      roughness: 0.22,
-      metalness: 0.88,
-      flatShading: true
-    });
-    const building = new THREE.Mesh(bGeo, bMat);
+    // Reuse shared base material and box geometry
+    const bMat = buildingBaseMaterials[Math.floor(Math.random() * buildingBaseMaterials.length)];
+    const building = new THREE.Mesh(boxGeoShared, bMat);
+    building.scale.set(w, h, d);
 
     let bx = (Math.random() - 0.5) * 220;
     let bz = (Math.random() - 0.5) * 220;
@@ -403,13 +467,13 @@ function createCity() {
     building.position.set(bx, h / 2, bz);
     scene.add(building);
 
+    // Bounding Box (recomputes based on current scale)
     const box = new THREE.Box3().setFromObject(building);
     buildingBoundingBoxes.push(box);
 
-    // Neon pillars
+    // Neon pillars - Reuse boxGeoShared and pre-created neonMaterials
     const pipeColor = neonColors[Math.floor(Math.random() * neonColors.length)];
-    const pipeGeo = new THREE.BoxGeometry(0.4, h, 0.4);
-    const pipeMat = new THREE.MeshBasicMaterial({ color: pipeColor });
+    const pipeMat = neonMaterials[pipeColor];
 
     const offsets = [
       { x: -w/2, z: -d/2 }, { x: w/2, z: -d/2 },
@@ -417,79 +481,83 @@ function createCity() {
     ];
 
     offsets.forEach(offset => {
-      const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+      const pipe = new THREE.Mesh(boxGeoShared, pipeMat);
+      pipe.scale.set(0.4, h, 0.4);
       pipe.position.set(bx + offset.x, h / 2, bz + offset.z);
       scene.add(pipe);
     });
 
-    // Window bands
+    // Window bands - Reuse boxGeoShared and neonMaterials
     const windowColor = neonColors[Math.floor(Math.random() * neonColors.length)];
-    const winMat = new THREE.MeshBasicMaterial({ color: windowColor });
+    const winMat = neonMaterials[windowColor];
 
     const bandCount = 3 + Math.floor(Math.random() * 4);
     for (let b = 0; b < bandCount; b++) {
       const bandHeight = (h / (bandCount + 1)) * (b + 1);
-      const bandGeo = new THREE.BoxGeometry(w + 0.1, 0.45, d + 0.1);
-      const band = new THREE.Mesh(bandGeo, winMat);
+      const band = new THREE.Mesh(boxGeoShared, winMat);
+      band.scale.set(w + 0.1, 0.45, d + 0.1);
       band.position.set(bx, bandHeight, bz);
       scene.add(band);
     }
 
-    // Top Holograms
+    // Top Holograms - Reuse octaGeoShared and a transparent variant of pipeMat
     if (h > 45) {
-      const holoGeo = new THREE.OctahedronGeometry(2.2, 0);
       const holoMat = new THREE.MeshBasicMaterial({ 
         color: pipeColor, 
         wireframe: true, 
         transparent: true, 
         opacity: 0.65 
       });
-      const holo = new THREE.Mesh(holoGeo, holoMat);
+      const holo = new THREE.Mesh(octaGeoShared, holoMat);
+      holo.scale.set(2.2, 2.2, 2.2);
       holo.position.set(bx, h + 3.5, bz);
       scene.add(holo);
       buildingHolograms.push(holo);
     }
   }
 
-  // Border Walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x04020a, roughness: 0.9 });
-  const wGeo = new THREE.BoxGeometry(300, 20, 4);
-  const wallNeonMat = new THREE.MeshBasicMaterial({ color: 0xff007f });
-
-  const northWall = new THREE.Mesh(wGeo, wallMat);
+  // Border Walls - Reuse boxGeoShared, wallMaterial, and wallNeonMaterial
+  const northWall = new THREE.Mesh(boxGeoShared, wallMaterial);
+  northWall.scale.set(300, 20, 4);
   northWall.position.set(0, 10, -150);
   scene.add(northWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(northWall));
 
-  const northWallNeon = new THREE.Mesh(new THREE.BoxGeometry(300, 0.6, 4.2), wallNeonMat);
+  const northWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
+  northWallNeon.scale.set(300, 0.6, 4.2);
   northWallNeon.position.set(0, 18, -150);
   scene.add(northWallNeon);
 
-  const southWall = new THREE.Mesh(wGeo, wallMat);
+  const southWall = new THREE.Mesh(boxGeoShared, wallMaterial);
+  southWall.scale.set(300, 20, 4);
   southWall.position.set(0, 10, 150);
   scene.add(southWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(southWall));
 
-  const southWallNeon = new THREE.Mesh(new THREE.BoxGeometry(300, 0.6, 4.2), wallNeonMat);
+  const southWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
+  southWallNeon.scale.set(300, 0.6, 4.2);
   southWallNeon.position.set(0, 18, 150);
   scene.add(southWallNeon);
 
-  const wGeoSide = new THREE.BoxGeometry(4, 20, 300);
-  const eastWall = new THREE.Mesh(wGeoSide, wallMat);
+  const eastWall = new THREE.Mesh(boxGeoShared, wallMaterial);
+  eastWall.scale.set(4, 20, 300);
   eastWall.position.set(150, 10, 0);
   scene.add(eastWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(eastWall));
 
-  const eastWallNeon = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.6, 300), wallNeonMat);
+  const eastWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
+  eastWallNeon.scale.set(4.2, 0.6, 300);
   eastWallNeon.position.set(150, 18, 0);
   scene.add(eastWallNeon);
 
-  const westWall = new THREE.Mesh(wGeoSide, wallMat);
+  const westWall = new THREE.Mesh(boxGeoShared, wallMaterial);
+  westWall.scale.set(4, 20, 300);
   westWall.position.set(-150, 10, 0);
   scene.add(westWall);
   buildingBoundingBoxes.push(new THREE.Box3().setFromObject(westWall));
 
-  const westWallNeon = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.6, 300), wallNeonMat);
+  const westWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
+  westWallNeon.scale.set(4.2, 0.6, 300);
   westWallNeon.position.set(-150, 18, 0);
   scene.add(westWallNeon);
 }
@@ -530,6 +598,9 @@ function init3D() {
   });
 
   window.addEventListener('resize', onWindowResize);
+
+  // Pre-allocate shared geometries and materials once on startup
+  initSharedAssets();
 }
 
 function onWindowResize() {
@@ -555,63 +626,41 @@ function spawnZombie() {
   const zMesh = new THREE.Group();
   zMesh.position.set(zX, 1.25, zZ);
   
-  // Core
-  const coreGeo = new THREE.OctahedronGeometry(0.42, 1);
-  const coreMat = new THREE.MeshStandardMaterial({
-    color: zColor,
-    emissive: zColor,
-    emissiveIntensity: 1.45,
-    roughness: 0.15,
-    metalness: 0.9,
-    flatShading: true
-  });
-  const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+  // Core - Reuse octaGeoShared and droneCoreMaterials
+  const zLvlKey = Math.min(3, currentLevel);
+  const coreMat = droneCoreMaterials[zLvlKey];
+  const coreMesh = new THREE.Mesh(octaGeoShared, coreMat);
+  coreMesh.scale.set(0.42, 0.42, 0.42);
   coreMesh.name = "core";
   zMesh.add(coreMesh);
 
-  // Torus Halo ring
-  const ringGeo = new THREE.TorusGeometry(0.62, 0.06, 6, 18);
-  const ringMat = new THREE.MeshBasicMaterial({ color: zColor, wireframe: true });
-  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  // Torus Halo ring - Reuse torusGeoShared and neonMaterials
+  const ringMat = neonMaterials[zColor];
+  const ringMesh = new THREE.Mesh(torusGeoShared, ringMat);
   ringMesh.rotation.x = Math.PI / 2;
   ringMesh.name = "halo";
   zMesh.add(ringMesh);
 
-  // Arachnid mechanical spikes
-  const legGeo = new THREE.ConeGeometry(0.06, 0.7, 4);
-  const legMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1a24,
-    roughness: 0.5,
-    metalness: 0.8
-  });
-
+  // Arachnid mechanical spikes - Reuse coneGeoShared and droneLegMaterial
   const legCount = 4;
   for (let i = 0; i < legCount; i++) {
     const angleOffset = (i / legCount) * Math.PI * 2;
-    const leg = new THREE.Mesh(legGeo, legMat);
+    const leg = new THREE.Mesh(coneGeoShared, droneLegMaterial);
     leg.position.set(Math.cos(angleOffset) * 0.32, -0.38, Math.sin(angleOffset) * 0.32);
     leg.rotation.z = Math.cos(angleOffset) * 0.25;
     leg.rotation.x = Math.sin(angleOffset) * 0.25;
     zMesh.add(leg);
   }
 
-  // visors
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const eyeGeo = new THREE.SphereGeometry(0.09, 8, 8);
-  const eye = new THREE.Mesh(eyeGeo, eyeMat);
+  // visors - Reuse octaGeoShared (scaled down) and droneEyeMaterial
+  const eye = new THREE.Mesh(octaGeoShared, droneEyeMaterial);
+  eye.scale.set(0.09, 0.09, 0.09);
   eye.position.set(0, 0.05, 0.4);
   zMesh.add(eye);
 
-  // Floor Projection targeting ring
-  const projGeo = new THREE.RingGeometry(0.1, 0.65, 16);
-  projGeo.rotateX(-Math.PI / 2);
-  const projMat = new THREE.MeshBasicMaterial({
-    color: zColor,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.4
-  });
-  const projMesh = new THREE.Mesh(projGeo, projMat);
+  // Floor Projection targeting ring - Reuse ringGeoShared and droneProjMaterials
+  const projMat = droneProjMaterials[zLvlKey];
+  const projMesh = new THREE.Mesh(ringGeoShared, projMat);
   projMesh.name = "projection";
   projMesh.position.set(0, -1.23, 0);
   zMesh.add(projMesh);
@@ -696,11 +745,9 @@ function checkPlayerCollision(newPos) {
 function spawn3DLaser(endPos) {
   const startPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.25, camera.position.z);
   const distance = startPos.distanceTo(endPos);
-  const geom = new THREE.CylinderGeometry(0.04, 0.04, distance, 6);
-  geom.rotateX(Math.PI / 2);
-
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
-  const laserMesh = new THREE.Mesh(geom, mat);
+  
+  const laserMesh = new THREE.Mesh(laserGeoShared, laserMatShared);
+  laserMesh.scale.set(0.04, 0.04, distance);
   
   laserMesh.position.copy(startPos);
   laserMesh.lookAt(endPos);
@@ -712,10 +759,10 @@ function spawn3DLaser(endPos) {
 
 function spawnExplosionVFX(pos, colorHex) {
   const pCount = 18;
+  const mat = explosionMaterials[colorHex] || neonMaterials[colorHex] || new THREE.MeshBasicMaterial({ color: colorHex });
   for (let i = 0; i < pCount; i++) {
-    const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
-    const mat = new THREE.MeshBasicMaterial({ color: colorHex });
-    const pMesh = new THREE.Mesh(geo, mat);
+    const pMesh = new THREE.Mesh(boxGeoShared, mat);
+    pMesh.scale.set(0.15, 0.15, 0.15);
     pMesh.position.copy(pos);
     scene.add(pMesh);
 
@@ -960,9 +1007,6 @@ async function startMatch() {
   document.getElementById('mainMenu').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
-  
-  const settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) settingsBtn.classList.add('hidden');
 
   lives = 3;
   kills = 0;
@@ -1022,9 +1066,6 @@ function endMatch() {
   controls.unlock();
   SoundSynth.playVictory();
 
-  const settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) settingsBtn.classList.remove('hidden');
-
   // Sync Defeat Screen info
   document.getElementById('defeatKillsAmt').innerText = `${kills} Kills`;
   document.getElementById('defeatDifficultyReached').innerText = `Level ${currentLevel}`;
@@ -1043,9 +1084,6 @@ function exitMatchToMenu() {
   controls.unlock();
   activeZombies.forEach(z => cleanupZombie(z));
   activeZombies = [];
-  
-  const settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) settingsBtn.classList.remove('hidden');
 
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
@@ -1183,9 +1221,9 @@ function animate() {
   // 5. Update Lasers
   for (let i = activeLasers.length - 1; i >= 0; i--) {
     const laser = activeLasers[i];
-    laser.mesh.scale.x *= 0.65;
-    laser.mesh.scale.y *= 0.65;
-    if (laser.mesh.scale.x < 0.04) {
+    laser.scale *= 0.65;
+    laser.mesh.scale.set(0.04 * laser.scale, 0.04 * laser.scale, laser.mesh.scale.z);
+    if (laser.scale < 0.04) {
       scene.remove(laser.mesh);
       activeLasers.splice(i, 1);
     }
@@ -1439,47 +1477,6 @@ function setupUIListeners() {
     });
   }
 
-  // Settings
-  const settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
-      const settingsModal = document.getElementById('settingsModal');
-      if (settingsModal) settingsModal.classList.remove('hidden');
-      SoundSynth.playClick();
-    });
-  }
-
-  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-  if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => {
-      const settingsModal = document.getElementById('settingsModal');
-      if (settingsModal) settingsModal.classList.add('hidden');
-      SoundSynth.playClick();
-    });
-  }
-
-  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-  if (saveSettingsBtn) {
-    saveSettingsBtn.addEventListener('click', () => {
-      const urlInput = document.getElementById('supabaseUrlInput');
-      const keyInput = document.getElementById('supabaseKeyInput');
-      const url = urlInput ? urlInput.value.trim() : '';
-      const key = keyInput ? keyInput.value.trim() : '';
-      storage.setItem('supabase_url', url);
-      storage.setItem('supabase_key', key);
-      window.location.reload(); // Reload to reinit Supabase
-    });
-  }
-
-  const resetSettingsBtn = document.getElementById('resetSettingsBtn');
-  if (resetSettingsBtn) {
-    resetSettingsBtn.addEventListener('click', () => {
-      storage.setItem('supabase_url', '');
-      storage.setItem('supabase_key', '');
-      window.location.reload();
-    });
-  }
-
   // Leaderboard togglers
   const leaderboardBtn = document.getElementById('leaderboardBtn');
   if (leaderboardBtn) {
@@ -1533,12 +1530,6 @@ function setupUIListeners() {
 
 // ==================== INITIALIZATION ====================
 window.addEventListener('DOMContentLoaded', () => {
-  // Prefill configuration inputs safely
-  const urlInput = document.getElementById('supabaseUrlInput');
-  const keyInput = document.getElementById('supabaseKeyInput');
-  if (urlInput) urlInput.value = storage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
-  if (keyInput) keyInput.value = storage.getItem('supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
   // Setup visual renderer and controls
   init3D();
   setupUIListeners();
