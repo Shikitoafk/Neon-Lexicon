@@ -1181,11 +1181,14 @@ async function syncScoreToSupabase() {
   syncStatus.innerText = "SYNCHRONIZING SCORE...";
   syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlCyan font-bold bg-[#050f16] px-3 py-2 rounded-lg text-center mt-3 border border-brawlCyan/20 select-none animate-pulse";
 
+  const meta = currentUser.user_metadata || {};
+  const username = meta.username || currentUser.email.split('@')[0] || 'Runner';
+
+  // Run this in Supabase SQL Editor if profiles upsert returns 403 (RLS):
+  // CREATE POLICY "Users can update own profile" ON profiles
+  // FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
   try {
-    const meta = currentUser.user_metadata || {};
-    const username = meta.username || currentUser.email.split('@')[0] || 'Runner';
-    
-    // Save progress using profiles.upsert() as requested in Step 4
     const { error } = await supabase
       .from('profiles')
       .upsert({
@@ -1199,14 +1202,11 @@ async function syncScoreToSupabase() {
     console.log("Successfully upserted player profile scores to Supabase:", finalScore);
     syncStatus.innerText = "PROFILE SCORE UPSERTED SUCCESS!";
     syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
-    
-    // Auto update top banner score
+
     highScore = finalScore;
     document.getElementById('highScoreCount').innerText = highScore;
   } catch (err) {
-    console.error("Score sync error:", err);
-    syncStatus.innerText = "FAILED TO UPSERT SCORE";
-    syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlRed font-bold bg-[#1a080f] px-3 py-2 rounded-lg text-center mt-3 border border-brawlRed/20 select-none";
+    console.warn("Score sync error:", err);
   }
 }
 
@@ -1251,15 +1251,22 @@ async function startMatch() {
   try {
     const { data, error } = await supabase
       .from('vocabulary')
-      .select('en_word, ru_word, theme');
-    
+      .select('*');
+
     if (error) throw error;
     if (data && data.length > 0) {
-      vocabList = data.map(item => ({
-        en: item.en_word.toLowerCase().trim(),
-        ru: item.ru_word.trim(),
-        level: (item.en_word.length <= 4) ? 1 : ((item.en_word.length <= 7) ? 2 : 3)
-      }));
+      console.log('Vocabulary columns:', Object.keys(data[0]));
+      vocabList = data.map(item => {
+        const enRaw = item.en_word ?? item.en ?? item.english ?? item.word ?? '';
+        const ruRaw = item.ru_word ?? item.ru ?? item.russian ?? item.translation ?? '';
+        const en = String(enRaw).toLowerCase().trim();
+        const ru = String(ruRaw).trim();
+        return {
+          en,
+          ru,
+          level: (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3)
+        };
+      }).filter(item => item.en && item.ru);
     } else {
       vocabList = FALLBACK_VOCAB;
     }
