@@ -1443,9 +1443,11 @@ function setupUIListeners() {
 
 // ==================== INITIALIZATION ====================
 window.addEventListener('DOMContentLoaded', () => {
-  // Prefill configuration inputs
-  document.getElementById('supabaseUrlInput').value = storage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
-  document.getElementById('supabaseKeyInput').value = storage.getItem('supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  // Prefill configuration inputs safely
+  const urlInput = document.getElementById('supabaseUrlInput');
+  const keyInput = document.getElementById('supabaseKeyInput');
+  if (urlInput) urlInput.value = storage.getItem('supabase_url') || import.meta.env.VITE_SUPABASE_URL || '';
+  if (keyInput) keyInput.value = storage.getItem('supabase_key') || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
   // Setup visual renderer and controls
   init3D();
