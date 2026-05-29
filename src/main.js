@@ -1274,10 +1274,10 @@ async function startMatch() {
     vocabList = FALLBACK_VOCAB;
   }
 
-  clock.getDelta();
-
-  triggerAnnounce("SURVIVE THE CITY!");
   isPlaying = true;
+
+  clock.getDelta();
+  triggerAnnounce("SURVIVE THE CITY!");
   updateHUD();
 }
 
