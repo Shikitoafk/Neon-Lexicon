@@ -17,9 +17,6 @@
   <!-- PointerLockControls CDN -->
   <script src="https://unpkg.com/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
   
-  <!-- Supabase JS Client CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
   <script>
     tailwind.config = {
       theme: {
@@ -56,8 +53,66 @@
   <!-- LAYER 3: User Interface Overlay Layer (Z-Index: 10, pointer-events: none) -->
   <div id="ui-layer" class="absolute inset-0 w-full h-full pointer-events-none z-10 flex flex-col justify-between">
     
-    <!-- MAIN MENU LAYER (z-index: 10, visible initially) -->
-    <div id="mainMenu" class="absolute inset-0 bg-gradient-to-br from-[#0c0524]/90 via-[#03030c]/95 to-[#050b1d]/90 backdrop-blur-md flex flex-col justify-between p-6 pointer-events-auto transition-all duration-300">
+    <!-- AUTH SCREEN LAYER (z-index: 15, visible by default if guest) -->
+    <div id="authScreen" class="absolute inset-0 z-15 bg-gradient-to-br from-[#0c0524]/95 via-[#03030c]/98 to-[#050b1d]/95 flex flex-col items-center justify-center p-6 pointer-events-auto transition-all duration-300">
+      
+      <div class="text-center max-w-sm w-full mx-auto flex flex-col items-center gap-4 mb-6 select-none">
+        <h1 class="font-logo text-5xl md:text-6xl tracking-wider text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-purple-400 drop-shadow-[0_4px_12px_rgba(168,85,247,0.3)]">
+          NEON LEXICON
+        </h1>
+        <p class="text-brawlCyan text-xs font-bold tracking-[0.15em] uppercase select-none">
+          SYSTEM ACCESS AUTHORIZATION
+        </p>
+      </div>
+
+      <!-- Auth Card container -->
+      <div class="w-full max-w-md bg-[#090518]/90 border border-purple-500/35 rounded-2xl p-6 shadow-[0_0_40px_rgba(168,85,247,0.15)] flex flex-col gap-4">
+        
+        <!-- Tab selector -->
+        <div class="flex border-b border-slate-800 pb-2">
+          <button id="tabLoginBtn" class="flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none">
+            LOGIN
+          </button>
+          <button id="tabRegisterBtn" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none">
+            REGISTER
+          </button>
+        </div>
+
+        <!-- Form fields -->
+        <div class="space-y-4 pt-2">
+          <!-- Username (only shown in register mode) -->
+          <div id="usernameInputWrapper" class="hidden">
+            <label class="block text-xs uppercase tracking-widest text-slate-400 mb-1.5 font-bold">Runner Username</label>
+            <input id="authUsernameInput" type="text" placeholder="Enter cyber alias..." class="w-full p-3 bg-slate-900 border border-slate-800 rounded-lg text-sm text-brawlCyan focus:outline-none focus:border-brawlCyan/50 transition-all font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs uppercase tracking-widest text-slate-400 mb-1.5 font-bold">Email Address</label>
+            <input id="authEmailInput" type="email" placeholder="runner@matrix.net" class="w-full p-3 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-purple-500/50 transition-all font-mono">
+          </div>
+          
+          <div>
+            <label class="block text-xs uppercase tracking-widest text-slate-400 mb-1.5 font-bold">Access Password</label>
+            <input id="authPasswordInput" type="password" placeholder="••••••••" class="w-full p-3 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-purple-500/50 transition-all font-mono">
+          </div>
+          
+          <!-- Auth action message/alert -->
+          <div id="authAlert" class="hidden text-xs p-2.5 text-center font-bold rounded-lg transition-all duration-200"></div>
+
+          <!-- Submit Button -->
+          <button id="authSubmitBtn" class="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-logo text-lg tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-[1.02]">
+            AUTHENTICATE ACCESS
+          </button>
+        </div>
+      </div>
+
+      <div class="text-[9px] text-slate-600 uppercase tracking-widest mt-8 select-none">
+        Secure Handshake Protocol Enabled
+      </div>
+    </div>
+
+    <!-- MAIN MENU LAYER (z-index: 10, hidden by default until authed) -->
+    <div id="mainMenu" class="hidden absolute inset-0 bg-gradient-to-br from-[#0c0524]/90 via-[#03030c]/95 to-[#050b1d]/90 backdrop-blur-md flex flex-col justify-between p-6 pointer-events-auto transition-all duration-300">
       
       <!-- Top Header, Highscore & Leaderboard -->
       <div class="flex justify-between items-center w-full max-w-5xl mx-auto mt-4">
@@ -73,10 +128,18 @@
           </button>
         </div>
         
-        <!-- Settings Gear Icon -->
-        <button id="settingsBtn" class="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-900 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 hover:text-brawlCyan transition-all duration-200 shadow-lg">
-          ⚙️
-        </button>
+        <div class="flex items-center gap-3">
+          <!-- Profile Badge -->
+          <div id="userProfileBadge" class="flex items-center gap-2 border border-purple-500/20 bg-purple-950/20 px-3 py-1.5 rounded-full backdrop-blur-sm">
+            <img id="userAvatar" src="" class="w-5 h-5 rounded-full border border-brawlCyan/40 select-none">
+            <span id="userName" class="text-xs font-bold text-white max-w-[120px] truncate">Runner</span>
+          </div>
+
+          <!-- Logout Button -->
+          <button id="logoutBtn" class="px-3.5 py-2.5 bg-slate-900 border border-slate-800 hover:border-red-500/40 hover:text-red-400 text-slate-400 rounded-lg text-xs uppercase tracking-widest transition-all font-bold">
+            Logout
+          </button>
+        </div>
       </div>
 
       <!-- Center Logo & Description -->
@@ -90,98 +153,22 @@
         
         <div class="w-24 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent mt-2"></div>
         
-        <p class="text-slate-400 text-xs md:text-sm max-w-md leading-relaxed mt-2">
+        <p class="text-slate-400 text-xs md:text-sm max-w-md leading-relaxed mt-2 select-none">
           Navigate a procedural cyberpunk skyline. Evade glowing alien sentinel drones. 
           Use <span class="text-brawlYellow font-bold">Arrow Keys to Move</span> and 
           <span class="text-brawlGreen font-bold">Type English Words</span> to blast them!
         </p>
-
-        <!-- Auth Section Panel -->
-        <div id="authSection" class="flex flex-col items-center gap-3 w-full max-w-sm mx-auto mt-6 bg-[#090518]/80 border border-purple-500/20 p-5 rounded-2xl backdrop-blur-md shadow-2xl">
-          <!-- Logged Out View -->
-          <div id="loggedOutView" class="w-full flex flex-col gap-2.5">
-            <div class="text-[10px] text-purple-300 text-center uppercase tracking-widest font-bold mb-1 select-none">
-              Save Scores & Compete Globally
-            </div>
-            
-            <div class="flex gap-2 w-full">
-              <button id="discordLoginBtn" class="flex-1 py-2.5 px-3 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md">
-                <span>💬</span> Discord
-              </button>
-              <button id="githubLoginBtn" class="flex-1 py-2.5 px-3 bg-[#24292F] hover:bg-[#1C2024] text-white border border-slate-800 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all shadow-md">
-                <span>🐙</span> GitHub
-              </button>
-            </div>
-            
-            <button id="playAsGuestBtn" class="w-full py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-400 hover:text-white rounded-lg text-[10px] uppercase tracking-widest transition-all font-bold">
-              Play as Guest (Offline)
-            </button>
-          </div>
-
-          <!-- Logged In View -->
-          <div id="loggedInView" class="hidden w-full flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <img id="userAvatar" src="" class="w-10 h-10 rounded-full border border-brawlCyan/50 shadow-[0_0_8px_rgba(0,240,255,0.3)] select-none">
-              <div class="flex flex-col text-left">
-                <span class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Runner</span>
-                <span id="userName" class="text-white text-sm font-bold truncate max-w-[150px]">CyberRunner</span>
-              </div>
-            </div>
-            <button id="logoutBtn" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 hover:border-red-500/40 hover:text-red-400 text-slate-400 rounded-lg text-[10px] uppercase tracking-widest transition-all font-bold">
-              LOGOUT
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- Play Button (Big, Pulsing, Cyberpunk) -->
-      <div id="playBtnContainer" class="hidden flex flex-col items-center gap-4 mb-10 w-full transition-all duration-300">
+      <div id="playBtnContainer" class="flex flex-col items-center gap-4 mb-10 w-full transition-all duration-300">
         <button id="playBtn" class="relative group px-12 py-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-logo text-3xl tracking-widest rounded-xl shadow-[0_0_30px_rgba(168,85,247,0.45)] hover:shadow-[0_0_40px_rgba(168,85,247,0.65)] hover:scale-105 transition-all duration-200 pointer-events-auto border border-purple-400/40">
           ENTER THE CITY
           <span class="absolute -inset-0.5 bg-gradient-to-r from-brawlCyan to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-200"></span>
         </button>
         
-        <div class="text-[10px] text-slate-500 uppercase tracking-widest">
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest select-none">
           Version 2.0 (Three.js WebGL Engine)
-        </div>
-      </div>
-    </div>
-
-    <!-- SETTINGS MODAL (hidden initially) -->
-    <div id="settingsModal" class="hidden absolute inset-0 z-20 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
-      <div class="w-full max-w-md bg-slate-950 border border-purple-500/35 rounded-2xl p-6 shadow-2xl relative">
-        <button id="closeSettingsBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">✕</button>
-        
-        <h2 class="font-logo text-2xl tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-brawlCyan to-purple-400 mb-4">
-          DATABASE CONFIGURATION
-        </h2>
-        
-        <div class="space-y-4">
-          <div>
-            <label class="block text-xs uppercase tracking-widest text-slate-400 mb-1.5 font-bold">Supabase URL</label>
-            <input id="supabaseUrlInput" type="text" class="w-full p-3 bg-slate-900 border border-slate-800 rounded-lg text-sm text-brawlCyan focus:outline-none focus:border-brawlCyan/50 transition-all font-mono">
-          </div>
-          
-          <div>
-            <label class="block text-xs uppercase tracking-widest text-slate-400 mb-1.5 font-bold">Supabase Anon Key</label>
-            <textarea id="supabaseKeyInput" rows="3" class="w-full p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-300 focus:outline-none focus:border-purple-500/50 transition-all font-mono resize-none"></textarea>
-          </div>
-          
-          <div class="flex flex-col gap-2">
-            <span class="text-xs uppercase tracking-widest text-slate-400 font-bold">CONNECTION STATUS</span>
-            <div id="dbStatusAlert" class="text-xs p-2 bg-slate-800 border border-slate-700 text-gray-400 rounded-lg text-center font-bold">
-              FALLBACK MOCK ACTIVE
-            </div>
-          </div>
-
-          <div class="flex gap-2 pt-2">
-            <button id="saveSettingsBtn" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-sm transition-all shadow-md">
-              SAVE & CONNECT
-            </button>
-            <button id="resetSettingsBtn" class="px-4 py-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg text-sm transition-all">
-              RESET FALLBACK
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -346,7 +333,7 @@
 
   </div>
 
-  <!-- Load Master Game Code -->
-  <script src="game.js"></script>
+  <!-- Load Master Vite Module Game Code -->
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
