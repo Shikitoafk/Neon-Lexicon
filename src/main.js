@@ -1235,7 +1235,8 @@ async function startMatch() {
   activeLasers = [];
   explosionParticles = [];
   spawnInterval = 4000;
-
+  vocabList = [...FALLBACK_VOCAB];
+  spawnTimer = 0;
   createCity();
 
   playerPosition.set(0, 1.8, 0);
