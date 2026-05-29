@@ -335,13 +335,28 @@ let buildingHolograms = [];
 let isGameInitialized = false;
 
 function initializeGame() {
-  if (isGameInitialized) return;
+  if (isGameInitialized) {
+    console.log("initializeGame() skipped — already initialized.");
+    return;
+  }
   isGameInitialized = true;
-  
+
   console.log("Initializing Three.js WebGL Engine, UI listeners, and game loop.");
   init3D();
   setupUIListeners();
   animate();
+}
+
+function resetCameraOrientation() {
+  if (!camera) return;
+  camera.up.set(0, 1, 0);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.set(0, 0, 0);
+  camera.position.copy(playerPosition);
+  if (controls && controls.getObject) {
+    controls.getObject().rotation.order = 'YXZ';
+    controls.getObject().rotation.set(0, 0, 0);
+  }
 }
 
 function hideLoadingOverlay() {
@@ -366,13 +381,12 @@ function setupSessionManager() {
 
   let sessionChecked = false;
 
-  // 5-second timeout fallback
+  // 5-second timeout fallback (no longer calls initializeGame to prevent empty-state race)
   const fallbackTimeout = setTimeout(() => {
     if (!sessionChecked) {
-      console.warn("Supabase auth check timed out after 5 seconds. Falling back to main menu.");
+      console.warn("Supabase auth check timed out after 5 seconds. Directing to login screen.");
       sessionChecked = true;
       currentUser = null;
-      initializeGame();
       transitionToApp(false);
       hideLoadingOverlay();
     }
@@ -398,7 +412,7 @@ function setupSessionManager() {
       await loadUserProfile();
     } else {
       currentUser = null;
-      initializeGame();
+      // Do NOT initialize game here, wait for login or guest selection
       transitionToApp(false);
     }
     hideLoadingOverlay();
@@ -408,7 +422,6 @@ function setupSessionManager() {
       sessionChecked = true;
       clearTimeout(fallbackTimeout);
       currentUser = null;
-      initializeGame();
       transitionToApp(false);
       hideLoadingOverlay();
     }
@@ -417,29 +430,37 @@ function setupSessionManager() {
   // Listen for subsequent authentication changes
   supabase.auth.onAuthStateChange(async (event, session) => {
     console.log("Auth State Changed Event:", event, session);
-    if (!sessionChecked) {
-      sessionChecked = true;
-      clearTimeout(fallbackTimeout);
-      if (session) {
-        currentUser = session.user;
-        initializeGame();
-        transitionToApp(true);
-        await loadUserProfile();
-      } else {
-        currentUser = null;
-        initializeGame();
-        transitionToApp(false);
+
+    // Ignore INITIAL_SESSION null entirely — wait for getSession() or SIGNED_IN
+    if (event === 'INITIAL_SESSION' && !session) {
+      console.log("Ignoring INITIAL_SESSION null event to prevent double-init.");
+      return;
+    }
+
+    const shouldBootstrapSession =
+      session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION');
+
+    if (shouldBootstrapSession) {
+      if (!sessionChecked) {
+        sessionChecked = true;
+        clearTimeout(fallbackTimeout);
+        hideLoadingOverlay();
       }
-      hideLoadingOverlay();
-    } else {
-      if (session) {
-        currentUser = session.user;
-        transitionToApp(true);
-        await loadUserProfile();
-      } else {
-        currentUser = null;
-        transitionToApp(false);
+      currentUser = session.user;
+      initializeGame();
+      transitionToApp(true);
+      await loadUserProfile();
+      return;
+    }
+
+    if (event === 'SIGNED_OUT') {
+      if (!sessionChecked) {
+        sessionChecked = true;
+        clearTimeout(fallbackTimeout);
+        hideLoadingOverlay();
       }
+      currentUser = null;
+      transitionToApp(false);
     }
   });
 }
@@ -649,6 +670,8 @@ function init3D() {
 
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
   camera.position.set(0, 1.8, 0);
+  camera.up.set(0, 1, 0);
+  camera.rotation.set(0, 0, 0);
 
   renderer = new THREE.WebGLRenderer({ canvas: canvasElement, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -690,7 +713,8 @@ function init3D() {
 
   // Controls
   controls = new THREE.PointerLockControls(camera, renderer.domElement);
-  
+  resetCameraOrientation();
+
   controls.addEventListener('lock', () => {
     document.getElementById('blockerOverlay').classList.add('hidden');
   });
@@ -1006,6 +1030,35 @@ function renderLeaderboardEmpty() {
   `;
 }
 
+function renderLeaderboardError(message) {
+  const rowsContainer = document.getElementById('leaderboardRows');
+  if (!rowsContainer) return;
+  rowsContainer.innerHTML = `
+    <div class="text-center py-8 text-brawlRed text-xs uppercase tracking-widest border border-brawlRed/20 rounded-xl p-4 bg-red-950/5">
+      ${message}
+    </div>
+  `;
+}
+
+async function queryLeaderboardTable(table, select, orderColumn) {
+  const res = await supabase
+    .from(table)
+    .select(select)
+    .order(orderColumn, { ascending: false })
+    .limit(10);
+  console.log(`Supabase '${table}' query response data:`, res.data);
+  console.log(`Supabase '${table}' query response error:`, res.error);
+  return res;
+}
+
+function normalizeLeaderboardRows(rows, scoreKey = 'highest_score') {
+  return (rows || []).map((item) => ({
+    username: item.username || 'Anonymous Runner',
+    avatar_url: item.avatar_url,
+    highest_score: item[scoreKey] ?? item.score ?? item.highest_score ?? 0,
+  }));
+}
+
 async function fetchAndRenderLeaderboard() {
   const rowsContainer = document.getElementById('leaderboardRows');
   if (!rowsContainer) return;
@@ -1033,32 +1086,54 @@ async function fetchAndRenderLeaderboard() {
   }
 
   try {
-    console.log("Fetching view leaderboard...");
-    let { data, error } = await supabase
-      .from('leaderboard')
-      .select('username, avatar_url, highest_score')
-      .order('highest_score', { ascending: false })
-      .limit(10);
+    console.log("Fetching view leaderboard from 'leaderboard'...");
+    const primaryRes = await queryLeaderboardTable(
+      'leaderboard',
+      'username, avatar_url, highest_score',
+      'highest_score'
+    );
 
-    if (error) {
-      console.warn("Leaderboard view fetch error (falling back to profiles):", error);
-      
-      const fallbackRes = await supabase
-        .from('profiles')
-        .select('username, avatar_url, score')
-        .order('score', { ascending: false })
-        .limit(10);
-      
-      if (fallbackRes.error) {
-        console.error("Leaderboard profiles fallback also failed:", fallbackRes.error);
-        throw new Error(`Profiles fallback query failed: ${fallbackRes.error.message}`);
+    let data = null;
+
+    if (!primaryRes.error && primaryRes.data) {
+      data = normalizeLeaderboardRows(primaryRes.data, 'highest_score');
+    } else {
+      console.warn(
+        "Leaderboard view/table 'leaderboard' query failed, falling back to 'profiles'. Error:",
+        primaryRes.error
+      );
+
+      const profilesRes = await queryLeaderboardTable(
+        'profiles',
+        'username, avatar_url, score',
+        'score'
+      );
+
+      if (!profilesRes.error && profilesRes.data) {
+        data = normalizeLeaderboardRows(profilesRes.data, 'score');
+      } else {
+        console.warn(
+          "Profiles fallback failed, trying 'scores' table. Error:",
+          profilesRes.error
+        );
+
+        const scoresRes = await queryLeaderboardTable(
+          'scores',
+          'username, avatar_url, score',
+          'score'
+        );
+
+        if (!scoresRes.error && scoresRes.data) {
+          data = normalizeLeaderboardRows(scoresRes.data, 'score');
+        } else {
+          const errParts = [
+            primaryRes.error?.message,
+            profilesRes.error?.message,
+            scoresRes.error?.message,
+          ].filter(Boolean);
+          throw new Error(errParts.join(' | ') || 'All leaderboard queries failed');
+        }
       }
-      
-      data = (fallbackRes.data || []).map(item => ({
-        username: item.username,
-        avatar_url: item.avatar_url,
-        highest_score: item.score
-      }));
     }
 
     if (data && data.length > 0) {
@@ -1067,12 +1142,10 @@ async function fetchAndRenderLeaderboard() {
       renderLeaderboardEmpty();
     }
   } catch (err) {
-    console.error("Leaderboard exception:", err);
-    rowsContainer.innerHTML = `
-      <div class="text-center py-8 text-brawlRed text-xs uppercase tracking-widest border border-brawlRed/20 rounded-xl p-4 bg-red-950/5">
-        Failed to fetch leaderboard: ${err.message || 'Unknown network error'}
-      </div>
-    `;
+    console.error("Leaderboard exception caught:", err);
+    renderLeaderboardError(
+      `Failed to fetch leaderboard: ${err.message || 'Unknown network error'}`
+    );
   }
 }
 
@@ -1164,9 +1237,9 @@ async function startMatch() {
   spawnInterval = 4000;
 
   createCity();
-  
+
   playerPosition.set(0, 1.8, 0);
-  camera.position.copy(playerPosition);
+  resetCameraOrientation();
 
   controls.lock();
 
@@ -1606,6 +1679,7 @@ function setupUIListeners() {
         email: 'guest@matrix.net',
         user_metadata: { username: 'Guest Runner' }
       };
+      initializeGame();
       transitionToApp(true);
       loadUserProfile();
     });
