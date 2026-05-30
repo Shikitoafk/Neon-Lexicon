@@ -1250,15 +1250,15 @@ function hideCategoryScreenToMenu() {
 
 function mapWordsRows(data) {
   return (data || []).map((item) => {
-    const enRaw = item.en_word ?? item.en ?? item.english ?? item.word ?? item.word_en ?? '';
-    const ruRaw = item.ru_word ?? item.ru ?? item.russian ?? item.translation ?? item.word_ru ?? '';
-    const en = String(enRaw).toLowerCase().trim();
-    const ru = String(ruRaw).trim();
-    return {
-      en,
-      ru,
-      level: (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3)
-    };
+    const en = String(item.word ?? '').toLowerCase().trim();
+    const ru = String(item.translation ?? '').trim();
+    let level = parseInt(item.difficulty, 10);
+    if (Number.isNaN(level) || level < 1) {
+      level = (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3);
+    } else {
+      level = Math.min(3, Math.max(1, level));
+    }
+    return { en, ru, level };
   }).filter((item) => item.en && item.ru);
 }
 
