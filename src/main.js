@@ -1261,6 +1261,7 @@ async function startMatch() {
   playerPosition.set(0, 1.8, 0);
   resetCameraOrientation();
 
+  await new Promise(resolve => setTimeout(resolve, 150));
   controls.lock();
 
   // Load vocabulary
@@ -1308,6 +1309,9 @@ function triggerAnnounce(text) {
 }
 
 function endMatch() {
+  isPlaying = false;
+  activeKeys = {};
+  activeTarget = null;
   const finalKills = kills;
   const finalLevel = currentLevel;
   resetGameState();
@@ -1332,6 +1336,11 @@ function exitMatchToMenu() {
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
   document.getElementById('mainMenu').classList.remove('hidden');
+
+  activeKeys = {};
+  isPlaying = false;
+  activeTarget = null;
+  updateHUD();
 }
 
 // ==================== 3D SURVIVAL LOOP ====================
