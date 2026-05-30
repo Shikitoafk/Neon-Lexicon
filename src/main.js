@@ -347,7 +347,12 @@ function initializeGame() {
   console.log("Initializing Three.js WebGL Engine, UI listeners, and game loop.");
   init3D();
   setupUIListeners();
-  animate();
+  startRenderLoop();
+}
+
+function startRenderLoop() {
+  stopGameLoop();
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 function resetCameraOrientation() {
@@ -400,8 +405,6 @@ function setupSessionManager() {
   console.log("Starting Supabase getSession check...");
   supabase.auth.getSession().then(async ({ data, error }) => {
     console.log("Supabase getSession exact result:", { data, error });
-    if (sessionChecked) return;
-    sessionChecked = true;
     clearTimeout(fallbackTimeout);
 
     if (error) {
@@ -411,16 +414,22 @@ function setupSessionManager() {
     const session = data ? data.session : null;
     if (session) {
       currentUser = session.user;
-      initializeGame();
-      transitionToApp(true);
+      if (!isGameInitialized) {
+        initializeGame();
+      }
+      if (!sessionChecked) {
+        sessionChecked = true;
+        transitionToApp(true);
+        hideLoadingOverlay();
+      }
       await loadUserProfile();
-    } else {
+    } else if (!sessionChecked) {
+      sessionChecked = true;
       currentUser = null;
-      // Boot engine + UI listeners for auth/guest; match only starts after they enter
       initializeGame();
       transitionToApp(false);
+      hideLoadingOverlay();
     }
-    hideLoadingOverlay();
   }).catch((err) => {
     console.error("Supabase getSession exception:", err);
     if (!sessionChecked) {
@@ -445,21 +454,26 @@ function setupSessionManager() {
       return;
     }
 
+    if (event === 'TOKEN_REFRESHED' && session?.user) {
+      currentUser = session.user;
+      await loadUserProfile();
+      return;
+    }
+
     const shouldBootstrapSession =
       session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION');
 
     if (shouldBootstrapSession) {
-      if (isGameInitialized && currentUser?.id === session.user.id) {
-        return;
-      }
       if (!sessionChecked) {
         sessionChecked = true;
         clearTimeout(fallbackTimeout);
         hideLoadingOverlay();
       }
       currentUser = session.user;
-      initializeGame();
-      transitionToApp(true);
+      if (!isGameInitialized) {
+        initializeGame();
+        transitionToApp(true);
+      }
       await loadUserProfile();
       return;
     }
@@ -493,8 +507,24 @@ function transitionToApp(isAuthenticated) {
   }
 }
 
+function updateHighScoreUI(score) {
+  highScore = Math.max(0, parseInt(score, 10) || 0);
+  const highScoreEl = document.getElementById('highScoreCount');
+  if (highScoreEl) highScoreEl.innerText = highScore;
+}
+
+async function ensureAuthSession() {
+  if (!supabase) return null;
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error) console.warn('ensureAuthSession:', error.message);
+  if (session?.user) currentUser = session.user;
+  return session;
+}
+
 async function loadUserProfile() {
   if (!currentUser) return;
+
+  await ensureAuthSession();
   
   // Set temporary fallback values based on metadata first so UI isn't empty while loading
   const meta = currentUser.user_metadata || {};
@@ -504,39 +534,44 @@ async function loadUserProfile() {
   document.getElementById('userName').innerText = username.toUpperCase();
   document.getElementById('userAvatar').src = avatar;
 
+  const cachedScore = storage.getItem(`highscore_${currentUser.id}`);
+  if (cachedScore !== null) {
+    updateHighScoreUI(cachedScore);
+  }
+
   if (currentUser.id === 'guest') {
     username = storage.getItem('guest_username') || 'Guest';
     avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     document.getElementById('userName').innerText = username.toUpperCase();
     document.getElementById('userAvatar').src = avatar;
-    highScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
-    document.getElementById('highScoreCount').innerText = highScore;
+    updateHighScoreUI(storage.getItem('guest_high_score') || '0');
     return;
   }
 
+  if (!supabase) return;
+
   try {
-    // Load complete profile from profiles table by user.id as strictly requested
     const { data, error } = await supabase
       .from('profiles')
       .select('username, avatar_url, score')
       .eq('id', currentUser.id)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error) throw error;
+
     if (data) {
       username = data.username || username;
       avatar = data.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-      highScore = parseInt(data.score, 10);
-      if (Number.isNaN(highScore)) highScore = 0;
-
-      // Update UI panels with data loaded from profiles table
       document.getElementById('userName').innerText = username.toUpperCase();
       document.getElementById('userAvatar').src = avatar;
-      const highScoreEl = document.getElementById('highScoreCount');
-      if (highScoreEl) highScoreEl.innerText = highScore;
+      updateHighScoreUI(data.score);
+      storage.setItem(`highscore_${currentUser.id}`, String(highScore));
+      console.log('Profile loaded, score:', highScore);
+    } else {
+      console.warn('No profiles row for user yet — using cached/metadata score');
     }
   } catch (e) {
-    console.warn("Failed retrieving profiles record:", e.message);
+    console.warn('Failed retrieving profiles record:', e.message, e);
   }
 }
 
@@ -1100,6 +1135,12 @@ async function fetchAndRenderLeaderboard() {
   }
 
   try {
+    const session = await ensureAuthSession();
+    if (!session) {
+      renderLeaderboardError('Log in to view the leaderboard');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('username, avatar_url, score')
@@ -1181,8 +1222,10 @@ async function syncScoreToSupabase() {
     syncStatus.innerText = "PROFILE SCORE UPSERTED SUCCESS!";
     syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
 
-    highScore = finalScore;
-    document.getElementById('highScoreCount').innerText = highScore;
+    updateHighScoreUI(finalScore);
+    if (currentUser?.id) {
+      storage.setItem(`highscore_${currentUser.id}`, String(highScore));
+    }
   } catch (err) {
     console.warn("Score sync error:", err);
   }
@@ -1305,7 +1348,7 @@ async function loadWordsForMatch() {
 async function startMatch() {
   resetGameState();
   stopGameLoop();
-  animate();
+  startRenderLoop();
   authListenerActive = false;
   SoundSynth.resumeContext();
 
@@ -1382,7 +1425,7 @@ function exitMatchToMenu() {
   isPlaying = false;
   activeTarget = null;
   authListenerActive = true;
-  animate();
+  startRenderLoop();
 }
 
 // ==================== 3D SURVIVAL LOOP ====================
@@ -1394,8 +1437,6 @@ function stopGameLoop() {
 }
 
 function animate() {
-  animationFrameId = requestAnimationFrame(animate);
-
   const dt = clock.getDelta();
   const time = clock.getElapsedTime();
 
@@ -1404,7 +1445,10 @@ function animate() {
     labelRenderer.render(scene, camera);
   }
 
-  if (!isPlaying) return;
+  if (!isPlaying) {
+    animationFrameId = requestAnimationFrame(animate);
+    return;
+  }
 
   // 1. Movement handling (Arrow Keys)
   const speed = 7.0;
@@ -1552,6 +1596,8 @@ function animate() {
     h.rotation.y += 0.015;
     h.rotation.x += 0.007;
   });
+
+  animationFrameId = requestAnimationFrame(animate);
 }
 
 // ==================== TYPING COMBAT CONTROLLER ====================
