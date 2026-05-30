@@ -220,6 +220,7 @@ let highScore = 0;
 let currentUser = null;
 let authListenerActive = true;
 let animationFrameId = null;
+let selectedCategory = 'all';
 
 // ==================== THREE.JS 3D VARIABLES ====================
 let scene, camera, renderer, labelRenderer;
@@ -1222,6 +1223,23 @@ function resetGameState() {
   explosionParticles = [];
 }
 
+function updateCategoryCardSelection() {
+  document.querySelectorAll('.category-card').forEach((card) => {
+    if (card.dataset.category === selectedCategory) {
+      card.classList.add('category-card-selected');
+    } else {
+      card.classList.remove('category-card-selected');
+    }
+  });
+}
+
+function showCategoryScreen() {
+  selectedCategory = 'all';
+  updateCategoryCardSelection();
+  document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('categoryScreen').classList.remove('hidden');
+}
+
 async function startMatch() {
   resetGameState();
   stopGameLoop();
@@ -1230,6 +1248,7 @@ async function startMatch() {
   SoundSynth.resumeContext();
 
   document.getElementById('mainMenu').classList.add('hidden');
+  document.getElementById('categoryScreen').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
 
@@ -1243,9 +1262,11 @@ async function startMatch() {
 
   // Load vocabulary
   try {
-    const { data, error } = await supabase
-      .from('vocabulary')
-      .select('*');
+    let query = supabase.from('vocabulary').select('*');
+    if (selectedCategory !== 'all') {
+      query = query.eq('category', selectedCategory);
+    }
+    const { data, error } = await query;
 
     if (error) throw error;
     if (data && data.length > 0) {
@@ -1317,6 +1338,7 @@ function exitMatchToMenu() {
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
   document.getElementById('blockerOverlay').classList.add('hidden');
+  document.getElementById('categoryScreen').classList.add('hidden');
   document.getElementById('mainMenu').classList.remove('hidden');
 
   activeKeys = {};
@@ -1789,10 +1811,27 @@ function setupUIListeners() {
     });
   }
 
-  // Enter city / Start Match
+  // Enter city → category selection
   const playBtn = document.getElementById('playBtn');
   if (playBtn) {
     playBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      showCategoryScreen();
+    });
+  }
+
+  document.querySelectorAll('.category-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      SoundSynth.playClick();
+      selectedCategory = card.dataset.category || 'all';
+      updateCategoryCardSelection();
+    });
+  });
+
+  const startCategoryMatchBtn = document.getElementById('startCategoryMatchBtn');
+  if (startCategoryMatchBtn) {
+    startCategoryMatchBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
       startMatch();
     });
   }

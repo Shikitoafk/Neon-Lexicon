@@ -196,6 +196,48 @@
       </div>
     </div>
 
+    <!-- WORD CATEGORY SELECTION (after ENTER THE CITY) -->
+    <div id="categoryScreen" class="hidden absolute inset-0 z-[15] bg-gradient-to-br from-[#0c0524]/95 via-[#03030c]/98 to-[#050b1d]/95 backdrop-blur-md flex flex-col items-center justify-center p-4 md:p-8 pointer-events-auto overflow-y-auto">
+      <div class="w-full max-w-4xl mx-auto flex flex-col items-center gap-6 md:gap-8">
+        <div class="text-center select-none">
+          <h2 class="font-logo text-4xl md:text-5xl tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-brawlCyan via-purple-300 to-brawlPink drop-shadow-[0_0_20px_rgba(0,240,255,0.25)]">
+            SELECT WORD PACK
+          </h2>
+          <p class="text-slate-400 text-xs md:text-sm uppercase tracking-[0.2em] mt-2 font-bold">
+            Choose your vocabulary loadout before entering the grid
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <button type="button" class="category-card category-card-selected" data-category="all">
+            <span class="category-card-icon">🌐</span>
+            <span class="category-card-title">ALL WORDS</span>
+            <span class="category-card-desc">Full dictionary — every word in the database</span>
+          </button>
+          <button type="button" class="category-card" data-category="IT">
+            <span class="category-card-icon">💻</span>
+            <span class="category-card-title">IT &amp; TECH</span>
+            <span class="category-card-desc">Code, hardware, and digital survival terms</span>
+          </button>
+          <button type="button" class="category-card" data-category="IELTS">
+            <span class="category-card-icon">📚</span>
+            <span class="category-card-title">IELTS &amp; Academic</span>
+            <span class="category-card-desc">Exam-ready academic and formal vocabulary</span>
+          </button>
+          <button type="button" class="category-card" data-category="Basic">
+            <span class="category-card-icon">⚡</span>
+            <span class="category-card-title">Basic English</span>
+            <span class="category-card-desc">Essential words for fast-paced beginners</span>
+          </button>
+        </div>
+
+        <button id="startCategoryMatchBtn" type="button" class="relative group px-10 py-4 bg-gradient-to-r from-brawlCyan/90 to-purple-600 hover:from-brawlCyan hover:to-purple-500 text-[#03030c] font-logo text-2xl md:text-3xl tracking-widest rounded-xl shadow-[0_0_30px_rgba(0,240,255,0.35)] hover:shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:scale-105 transition-all duration-200 border border-brawlCyan/50">
+          START MATCH
+          <span class="absolute -inset-0.5 bg-gradient-to-r from-brawlCyan to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-200"></span>
+        </button>
+      </div>
+    </div>
+
     <!-- LEADERBOARD MODAL (hidden initially) -->
     <div id="leaderboardModal" class="hidden absolute inset-0 z-20 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
       <div class="w-full max-w-lg bg-slate-950 border border-brawlCyan/35 rounded-2xl p-6 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative flex flex-col max-h-[85vh]">
