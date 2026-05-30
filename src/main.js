@@ -219,6 +219,7 @@ const storage = {
 let highScore = 0;
 let currentUser = null;
 let authListenerActive = true;
+let animationFrameId = null;
 
 // ==================== THREE.JS 3D VARIABLES ====================
 let scene, camera, renderer, labelRenderer;
@@ -1220,6 +1221,7 @@ function resetGameState() {
 
 async function startMatch() {
   resetGameState();
+  animate();
   authListenerActive = false;
   SoundSynth.resumeContext();
 
@@ -1280,6 +1282,7 @@ function triggerAnnounce(text) {
 }
 
 function endMatch() {
+  stopGameLoop();
   authListenerActive = true;
   isPlaying = false;
   activeKeys = {};
@@ -1302,6 +1305,7 @@ function endMatch() {
 }
 
 function exitMatchToMenu() {
+  stopGameLoop();
   resetGameState();
   controls.unlock();
 
@@ -1317,8 +1321,15 @@ function exitMatchToMenu() {
 }
 
 // ==================== 3D SURVIVAL LOOP ====================
+function stopGameLoop() {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+}
+
 function animate() {
-  requestAnimationFrame(animate);
+  animationFrameId = requestAnimationFrame(animate);
 
   const dt = clock.getDelta();
   const time = clock.getElapsedTime();
