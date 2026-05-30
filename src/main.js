@@ -1262,7 +1262,7 @@ async function startMatch() {
 
   // Load vocabulary
   try {
-    let query = supabase.from('vocabulary').select('*');
+    let query = supabase.from('words').select('*');
     if (selectedCategory !== 'all') {
       query = query.eq('category', selectedCategory);
     }
