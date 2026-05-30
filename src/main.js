@@ -448,6 +448,9 @@ function setupSessionManager() {
       session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION');
 
     if (shouldBootstrapSession) {
+      if (isGameInitialized && currentUser?.id === session.user.id) {
+        return;
+      }
       if (!sessionChecked) {
         sessionChecked = true;
         clearTimeout(fallbackTimeout);
@@ -1221,6 +1224,7 @@ function resetGameState() {
 
 async function startMatch() {
   resetGameState();
+  stopGameLoop();
   animate();
   authListenerActive = false;
   SoundSynth.resumeContext();
@@ -1290,7 +1294,8 @@ function endMatch() {
   const finalKills = kills;
   const finalLevel = currentLevel;
   resetGameState();
-  controls.unlock();
+  if (controls) controls.unlock();
+  document.getElementById('blockerOverlay').classList.add('hidden');
   SoundSynth.playVictory();
 
   // Sync Defeat Screen info
@@ -1307,17 +1312,18 @@ function endMatch() {
 function exitMatchToMenu() {
   stopGameLoop();
   resetGameState();
-  controls.unlock();
+  if (controls) controls.unlock();
 
   document.getElementById('matchView').classList.add('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
+  document.getElementById('blockerOverlay').classList.add('hidden');
   document.getElementById('mainMenu').classList.remove('hidden');
 
   activeKeys = {};
   isPlaying = false;
   activeTarget = null;
   authListenerActive = true;
-  updateHUD();
+  animate();
 }
 
 // ==================== 3D SURVIVAL LOOP ====================
@@ -1808,9 +1814,8 @@ function setupUIListeners() {
   }
 
   document.getElementById('defeatExitBtn').addEventListener('click', () => {
-    document.getElementById('defeatOverlay').classList.add('hidden');
-    document.getElementById('mainMenu').classList.remove('hidden');
     SoundSynth.playClick();
+    exitMatchToMenu();
   });
 }
 
