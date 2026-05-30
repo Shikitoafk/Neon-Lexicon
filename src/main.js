@@ -755,6 +755,7 @@ function onWindowResize() {
 function spawnZombie() {
   const levelFiltered = vocabList.filter(item => item.level === Math.min(3, currentLevel));
   const pool = levelFiltered.length > 0 ? levelFiltered : vocabList;
+  if (pool.length === 0) return;
   const wordObj = pool[Math.floor(Math.random() * pool.length)];
 
   const angle = Math.random() * Math.PI * 2;
@@ -1236,8 +1237,69 @@ function updateCategoryCardSelection() {
 function showCategoryScreen() {
   selectedCategory = 'all';
   updateCategoryCardSelection();
+  const hint = document.getElementById('categoryScreenHint');
+  if (hint) hint.innerText = '';
   document.getElementById('mainMenu').classList.add('hidden');
   document.getElementById('categoryScreen').classList.remove('hidden');
+}
+
+function hideCategoryScreenToMenu() {
+  document.getElementById('categoryScreen').classList.add('hidden');
+  document.getElementById('mainMenu').classList.remove('hidden');
+}
+
+function mapWordsRows(data) {
+  return (data || []).map((item) => {
+    const enRaw = item.en_word ?? item.en ?? item.english ?? item.word ?? item.word_en ?? '';
+    const ruRaw = item.ru_word ?? item.ru ?? item.russian ?? item.translation ?? item.word_ru ?? '';
+    const en = String(enRaw).toLowerCase().trim();
+    const ru = String(ruRaw).trim();
+    return {
+      en,
+      ru,
+      level: (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3)
+    };
+  }).filter((item) => item.en && item.ru);
+}
+
+async function loadWordsForMatch() {
+  if (!supabase) {
+    console.warn('Supabase unavailable — using built-in word list');
+    return [...FALLBACK_VOCAB];
+  }
+
+  try {
+    let query = supabase.from('words').select('*');
+    if (selectedCategory !== 'all') {
+      query = query.eq('category', selectedCategory);
+    }
+    let { data, error } = await query;
+
+    if (error) throw error;
+
+    if (selectedCategory !== 'all' && (!data || data.length === 0)) {
+      console.warn(`No words for category "${selectedCategory}" — loading all words`);
+      const allRes = await supabase.from('words').select('*');
+      if (!allRes.error && allRes.data?.length) {
+        data = allRes.data;
+      }
+    }
+
+    if (data?.length) {
+      console.log('words table columns:', Object.keys(data[0]));
+    }
+
+    const mapped = mapWordsRows(data);
+    if (mapped.length > 0) {
+      return mapped;
+    }
+
+    console.warn('words table empty or column names mismatch — using built-in word list');
+    return [...FALLBACK_VOCAB];
+  } catch (e) {
+    console.warn('Failed to load words:', e.message, '— using built-in word list');
+    return [...FALLBACK_VOCAB];
+  }
 }
 
 async function startMatch() {
@@ -1257,36 +1319,11 @@ async function startMatch() {
   playerPosition.set(0, 1.8, 0);
   resetCameraOrientation();
 
-  await new Promise(resolve => setTimeout(resolve, 150));
-  controls.lock();
+  if (controls) controls.lock();
 
-  // Load vocabulary
-  try {
-    let query = supabase.from('words').select('*');
-    if (selectedCategory !== 'all') {
-      query = query.eq('category', selectedCategory);
-    }
-    const { data, error } = await query;
-
-    if (error) throw error;
-    if (data && data.length > 0) {
-      console.log('Vocabulary columns:', Object.keys(data[0]));
-      vocabList = data.map(item => {
-        const enRaw = item.en_word ?? item.en ?? item.english ?? item.word ?? '';
-        const ruRaw = item.ru_word ?? item.ru ?? item.russian ?? item.translation ?? '';
-        const en = String(enRaw).toLowerCase().trim();
-        const ru = String(ruRaw).trim();
-        return {
-          en,
-          ru,
-          level: (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3)
-        };
-      }).filter(item => item.en && item.ru);
-    } else {
-      vocabList = FALLBACK_VOCAB;
-    }
-  } catch (e) {
-    vocabList = FALLBACK_VOCAB;
+  vocabList = await loadWordsForMatch();
+  if (vocabList.length === 0) {
+    vocabList = [...FALLBACK_VOCAB];
   }
 
   isPlaying = true;
@@ -1833,6 +1870,14 @@ function setupUIListeners() {
     startCategoryMatchBtn.addEventListener('click', () => {
       SoundSynth.playClick();
       startMatch();
+    });
+  }
+
+  const backToMenuFromCategoryBtn = document.getElementById('backToMenuFromCategoryBtn');
+  if (backToMenuFromCategoryBtn) {
+    backToMenuFromCategoryBtn.addEventListener('click', () => {
+      SoundSynth.playClick();
+      hideCategoryScreenToMenu();
     });
   }
 

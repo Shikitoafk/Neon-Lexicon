@@ -231,10 +231,16 @@
           </button>
         </div>
 
-        <button id="startCategoryMatchBtn" type="button" class="relative group px-10 py-4 bg-gradient-to-r from-brawlCyan/90 to-purple-600 hover:from-brawlCyan hover:to-purple-500 text-[#03030c] font-logo text-2xl md:text-3xl tracking-widest rounded-xl shadow-[0_0_30px_rgba(0,240,255,0.35)] hover:shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:scale-105 transition-all duration-200 border border-brawlCyan/50">
-          START MATCH
-          <span class="absolute -inset-0.5 bg-gradient-to-r from-brawlCyan to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-200"></span>
-        </button>
+        <div class="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
+          <button id="backToMenuFromCategoryBtn" type="button" class="w-full sm:w-auto px-8 py-3 bg-slate-900 border border-slate-700 hover:border-brawlCyan/50 hover:text-brawlCyan text-slate-300 font-bold text-sm uppercase tracking-widest rounded-xl transition-all">
+            ← BACK TO PLAZA
+          </button>
+          <button id="startCategoryMatchBtn" type="button" class="relative group w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-brawlCyan/90 to-purple-600 hover:from-brawlCyan hover:to-purple-500 text-[#03030c] font-logo text-2xl md:text-3xl tracking-widest rounded-xl shadow-[0_0_30px_rgba(0,240,255,0.35)] hover:shadow-[0_0_40px_rgba(0,240,255,0.5)] hover:scale-105 transition-all duration-200 border border-brawlCyan/50">
+            START MATCH
+            <span class="absolute -inset-0.5 bg-gradient-to-r from-brawlCyan to-purple-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-200"></span>
+          </button>
+        </div>
+        <p id="categoryScreenHint" class="text-[10px] text-slate-500 uppercase tracking-widest text-center max-w-md select-none"></p>
       </div>
     </div>
 
