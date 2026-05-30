@@ -218,6 +218,7 @@ const storage = {
 // ==================== STATE MANAGEMENT ====================
 let highScore = 0;
 let currentUser = null;
+let authListenerActive = true;
 
 // ==================== THREE.JS 3D VARIABLES ====================
 let scene, camera, renderer, labelRenderer;
@@ -432,6 +433,8 @@ function setupSessionManager() {
 
   // Listen for subsequent authentication changes
   supabase.auth.onAuthStateChange(async (event, session) => {
+    if (!authListenerActive) return;
+
     console.log("Auth State Changed Event:", event, session);
 
     // Ignore INITIAL_SESSION null entirely — wait for getSession() or SIGNED_IN
@@ -1091,58 +1094,25 @@ async function fetchAndRenderLeaderboard() {
   }
 
   try {
-    console.log("Fetching view leaderboard from 'leaderboard'...");
-    const primaryRes = await queryLeaderboardTable(
-      'leaderboard',
-      'username, avatar_url, highest_score',
-      'highest_score'
-    );
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username, avatar_url, score')
+      .order('score', { ascending: false })
+      .limit(10);
 
-    let data = null;
+    console.log("Supabase 'profiles' leaderboard response data:", data);
+    console.log("Supabase 'profiles' leaderboard response error:", error);
 
-    if (!primaryRes.error && primaryRes.data) {
-      data = normalizeLeaderboardRows(primaryRes.data, 'highest_score');
-    } else {
-      console.warn(
-        "Leaderboard view/table 'leaderboard' query failed, falling back to 'profiles'. Error:",
-        primaryRes.error
-      );
+    if (error) throw error;
 
-      const profilesRes = await queryLeaderboardTable(
-        'profiles',
-        'username, avatar_url, score',
-        'score'
-      );
+    const mapped = (data || []).map(item => ({
+      username: item.username || 'Anonymous Runner',
+      avatar_url: item.avatar_url,
+      highest_score: item.score ?? 0,
+    }));
 
-      if (!profilesRes.error && profilesRes.data) {
-        data = normalizeLeaderboardRows(profilesRes.data, 'score');
-      } else {
-        console.warn(
-          "Profiles fallback failed, trying 'scores' table. Error:",
-          profilesRes.error
-        );
-
-        const scoresRes = await queryLeaderboardTable(
-          'scores',
-          'username, avatar_url, score',
-          'score'
-        );
-
-        if (!scoresRes.error && scoresRes.data) {
-          data = normalizeLeaderboardRows(scoresRes.data, 'score');
-        } else {
-          const errParts = [
-            primaryRes.error?.message,
-            profilesRes.error?.message,
-            scoresRes.error?.message,
-          ].filter(Boolean);
-          throw new Error(errParts.join(' | ') || 'All leaderboard queries failed');
-        }
-      }
-    }
-
-    if (data && data.length > 0) {
-      renderLeaderboardRows(data);
+    if (mapped.length > 0) {
+      renderLeaderboardRows(mapped);
     } else {
       renderLeaderboardEmpty();
     }
@@ -1250,6 +1220,7 @@ function resetGameState() {
 
 async function startMatch() {
   resetGameState();
+  authListenerActive = false;
   SoundSynth.resumeContext();
 
   document.getElementById('mainMenu').classList.add('hidden');
@@ -1309,6 +1280,7 @@ function triggerAnnounce(text) {
 }
 
 function endMatch() {
+  authListenerActive = true;
   isPlaying = false;
   activeKeys = {};
   activeTarget = null;
@@ -1340,6 +1312,7 @@ function exitMatchToMenu() {
   activeKeys = {};
   isPlaying = false;
   activeTarget = null;
+  authListenerActive = true;
   updateHUD();
 }
 
