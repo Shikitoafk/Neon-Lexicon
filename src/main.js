@@ -1319,18 +1319,19 @@ function mapWordsRows(data) {
 }
 
 async function loadWordsForMatch() {
+  const fallback = () => [...FALLBACK_VOCAB];
+
   if (!supabase) {
     console.warn('Supabase unavailable — using built-in word list');
-    return [...FALLBACK_VOCAB];
+    return fallback();
   }
 
-  try {
+  const fetchWords = async () => {
     let query = supabase.from('words').select('*');
     if (selectedCategory !== 'all') {
       query = query.eq('category', selectedCategory);
     }
     let { data, error } = await query;
-
     if (error) throw error;
 
     if (selectedCategory !== 'all' && (!data || data.length === 0)) {
@@ -1346,22 +1347,25 @@ async function loadWordsForMatch() {
     }
 
     const mapped = mapWordsRows(data);
-    if (mapped.length > 0) {
-      return mapped;
-    }
+    return mapped.length > 0 ? mapped : fallback();
+  };
 
-    console.warn('words table empty or column names mismatch — using built-in word list');
-    return [...FALLBACK_VOCAB];
+  try {
+    const timeout = new Promise((resolve) => {
+      setTimeout(() => resolve(null), 2500);
+    });
+    const result = await Promise.race([fetchWords(), timeout]);
+    if (result) return result;
+    console.warn('words fetch timed out — using built-in word list');
+    return fallback();
   } catch (e) {
     console.warn('Failed to load words:', e.message, '— using built-in word list');
-    return [...FALLBACK_VOCAB];
+    return fallback();
   }
 }
 
 async function startMatch() {
   resetGameState();
-  stopGameLoop();
-  startRenderLoop();
   authListenerActive = false;
   SoundSynth.resumeContext();
 
@@ -1369,22 +1373,32 @@ async function startMatch() {
   document.getElementById('categoryScreen').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
+  document.getElementById('blockerOverlay').classList.add('hidden');
 
   createCity();
 
   playerPosition.set(0, 1.8, 0);
   resetCameraOrientation();
 
-  if (controls) controls.lock();
-
   vocabList = await loadWordsForMatch();
   if (vocabList.length === 0) {
     vocabList = [...FALLBACK_VOCAB];
   }
+  console.log(`Match vocab ready: ${vocabList.length} words`);
 
   isPlaying = true;
-
+  spawnTimer = spawnInterval;
   clock.getDelta();
+
+  if (controls) {
+    try {
+      controls.lock();
+    } catch (e) {
+      console.warn('Pointer lock failed:', e);
+      document.getElementById('blockerOverlay').classList.remove('hidden');
+    }
+  }
+
   triggerAnnounce("SURVIVE THE CITY!");
   updateHUD();
 }
@@ -1400,7 +1414,6 @@ function triggerAnnounce(text) {
 }
 
 function endMatch() {
-  stopGameLoop();
   authListenerActive = true;
   isPlaying = false;
   activeKeys = {};
@@ -1424,7 +1437,6 @@ function endMatch() {
 }
 
 function exitMatchToMenu() {
-  stopGameLoop();
   resetGameState();
   if (controls) controls.unlock();
 
@@ -1438,7 +1450,6 @@ function exitMatchToMenu() {
   isPlaying = false;
   activeTarget = null;
   authListenerActive = true;
-  startRenderLoop();
 }
 
 // ==================== 3D SURVIVAL LOOP ====================
@@ -1520,7 +1531,11 @@ function animate() {
   const maxActive = currentLevel === 1 ? 3 : (currentLevel === 2 ? 5 : 8);
   spawnTimer += dt * 1000;
   if (spawnTimer >= spawnInterval && activeZombies.length < maxActive) {
-    spawnZombie();
+    try {
+      spawnZombie();
+    } catch (e) {
+      console.error('spawnZombie failed:', e);
+    }
     spawnTimer = 0;
   }
 
