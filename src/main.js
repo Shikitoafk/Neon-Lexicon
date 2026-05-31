@@ -472,8 +472,8 @@ function setupSessionManager() {
       currentUser = session.user;
       if (!isGameInitialized) {
         initializeGame();
-        transitionToApp(true);
       }
+      transitionToApp(true);
       await loadUserProfile();
       return;
     }
@@ -969,33 +969,39 @@ async function handleAuthAction(mode) {
   const email = document.getElementById('authEmailInput').value.trim();
   const password = document.getElementById('authPasswordInput').value.trim();
   const username = document.getElementById('authUsernameInput').value.trim();
-  const alertEl = document.getElementById('authAlert');
+  const authSubmitBtn = document.getElementById('authSubmitBtn');
 
   if (!email || !password) {
     showAlert("Email and Password fields are required.", "bg-red-950/40 border border-red-500/35 text-red-400");
     return;
   }
 
+  if (authSubmitBtn) authSubmitBtn.disabled = true;
   showAlert("Accessing matrix...", "bg-purple-950/30 border border-purple-500/20 text-purple-400 animate-pulse");
 
-  if (mode === 'register') {
-    if (!username) {
-      showAlert("Alias Username is required for profile index.", "bg-red-950/40 border border-red-500/35 text-red-400");
-      return;
-    }
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username }
+  try {
+    if (mode === 'register') {
+      if (!username) {
+        showAlert("Alias Username is required for profile index.", "bg-red-950/40 border border-red-500/35 text-red-400");
+        return;
       }
-    });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username }
+        }
+      });
 
-    if (error) {
-      showAlert(`Reg Failed: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
-    } else {
-      if (data && data.session) {
-        showAlert("Sign Up Successful! Authorizing profile...", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
+      if (error) {
+        showAlert(`Reg Failed: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
+      } else if (data?.session) {
+        currentUser = data.user;
+        if (!isGameInitialized) initializeGame();
+        transitionToApp(true);
+        hideLoadingOverlay();
+        await loadUserProfile();
+        showAlert("Sign Up Successful! Welcome to the grid.", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
         try {
           await supabase.from('profiles').upsert({
             id: data.user.id,
@@ -1008,18 +1014,25 @@ async function handleAuthAction(mode) {
       } else {
         showAlert("Registration successful! Please check your email to confirm your account, then log in.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
       }
-    }
-  } else {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      showAlert(`Access Denied: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
     } else {
-      showAlert("Access Authorized! Decrypting city grids...", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        showAlert(`Access Denied: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
+      } else if (data?.session) {
+        currentUser = data.session.user;
+        if (!isGameInitialized) initializeGame();
+        transitionToApp(true);
+        hideLoadingOverlay();
+        await loadUserProfile();
+        showAlert("Access Authorized! Welcome back.", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
+      }
     }
+  } finally {
+    if (authSubmitBtn) authSubmitBtn.disabled = false;
   }
 }
 
