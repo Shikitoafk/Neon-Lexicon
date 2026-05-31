@@ -387,104 +387,66 @@ function setupSessionManager() {
     return;
   }
 
-  let sessionChecked = false;
+  let bootstrapped = false;
 
-  // 5-second timeout fallback (no longer calls initializeGame to prevent empty-state race)
-  const fallbackTimeout = setTimeout(() => {
-    if (!sessionChecked) {
-      console.warn("Supabase auth check timed out after 5 seconds. Directing to login screen.");
-      sessionChecked = true;
-      currentUser = null;
-      initializeGame();
-      transitionToApp(false);
-      hideLoadingOverlay();
-    }
-  }, 5000);
-
-  // Directly check session and log the exact result
-  console.log("Starting Supabase getSession check...");
-  supabase.auth.getSession().then(async ({ data, error }) => {
-    console.log("Supabase getSession exact result:", { data, error });
-    clearTimeout(fallbackTimeout);
-
-    if (error) {
-      console.error("Supabase getSession error:", error);
-    }
-
-    const session = data ? data.session : null;
-    if (session) {
+  const bootstrapApp = (session) => {
+    if (session?.user) {
       currentUser = session.user;
-      if (!isGameInitialized) {
-        initializeGame();
-      }
-      if (!sessionChecked) {
-        sessionChecked = true;
-        transitionToApp(true);
-        hideLoadingOverlay();
-      }
-      await loadUserProfile();
-    } else if (!sessionChecked) {
-      sessionChecked = true;
+      if (!isGameInitialized) initializeGame();
+      transitionToApp(true);
+      hideLoadingOverlay();
+      bootstrapped = true;
+      // Never call getSession inside onAuthStateChange — defer profile load
+      setTimeout(() => loadUserProfile(), 0);
+    } else if (!bootstrapped) {
       currentUser = null;
-      initializeGame();
+      if (!isGameInitialized) initializeGame();
       transitionToApp(false);
       hideLoadingOverlay();
+      bootstrapped = true;
     }
-  }).catch((err) => {
-    console.error("Supabase getSession exception:", err);
-    if (!sessionChecked) {
-      sessionChecked = true;
-      clearTimeout(fallbackTimeout);
-      currentUser = null;
-      initializeGame();
-      transitionToApp(false);
-      hideLoadingOverlay();
-    }
-  });
+  };
 
-  // Listen for subsequent authentication changes
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  const fallbackTimeout = setTimeout(() => {
+    if (!bootstrapped) {
+      console.warn("Auth bootstrap timed out — checking session once.");
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!bootstrapped) bootstrapApp(session);
+      });
+    }
+  }, 4000);
+
+  supabase.auth.onAuthStateChange((event, session) => {
     if (!authListenerActive) return;
 
-    console.log("Auth State Changed Event:", event, session);
+    console.log("Auth State Changed Event:", event, session?.user?.id ?? 'no-user');
 
-    // Ignore INITIAL_SESSION null entirely — wait for getSession() or SIGNED_IN
-    if (event === 'INITIAL_SESSION' && !session) {
-      console.log("Ignoring INITIAL_SESSION null event to prevent double-init.");
+    if (event === 'INITIAL_SESSION') {
+      clearTimeout(fallbackTimeout);
+      bootstrapApp(session);
+      return;
+    }
+
+    if (event === 'SIGNED_IN' && session?.user) {
+      clearTimeout(fallbackTimeout);
+      currentUser = session.user;
+      if (!isGameInitialized) initializeGame();
+      transitionToApp(true);
+      hideLoadingOverlay();
+      bootstrapped = true;
+      setTimeout(() => loadUserProfile(), 0);
       return;
     }
 
     if (event === 'TOKEN_REFRESHED' && session?.user) {
       currentUser = session.user;
-      await loadUserProfile();
-      return;
-    }
-
-    const shouldBootstrapSession =
-      session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION');
-
-    if (shouldBootstrapSession) {
-      if (!sessionChecked) {
-        sessionChecked = true;
-        clearTimeout(fallbackTimeout);
-        hideLoadingOverlay();
-      }
-      currentUser = session.user;
-      if (!isGameInitialized) {
-        initializeGame();
-      }
-      transitionToApp(true);
-      await loadUserProfile();
+      setTimeout(() => loadUserProfile(), 0);
       return;
     }
 
     if (event === 'SIGNED_OUT') {
-      if (!sessionChecked) {
-        sessionChecked = true;
-        clearTimeout(fallbackTimeout);
-        hideLoadingOverlay();
-      }
       currentUser = null;
+      bootstrapped = false;
       transitionToApp(false);
     }
   });
@@ -515,6 +477,7 @@ function updateHighScoreUI(score) {
 
 async function ensureAuthSession() {
   if (!supabase) return null;
+  if (currentUser) return { user: currentUser };
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error) console.warn('ensureAuthSession:', error.message);
   if (session?.user) currentUser = session.user;
@@ -524,13 +487,10 @@ async function ensureAuthSession() {
 async function loadUserProfile() {
   if (!currentUser) return;
 
-  await ensureAuthSession();
-  
-  // Set temporary fallback values based on metadata first so UI isn't empty while loading
   const meta = currentUser.user_metadata || {};
-  let username = meta.username || currentUser.email.split('@')[0] || 'Runner';
+  let username = meta.username || (currentUser.email ? currentUser.email.split('@')[0] : 'Runner');
   let avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-  
+
   document.getElementById('userName').innerText = username.toUpperCase();
   document.getElementById('userAvatar').src = avatar;
 
@@ -568,7 +528,12 @@ async function loadUserProfile() {
       storage.setItem(`highscore_${currentUser.id}`, String(highScore));
       console.log('Profile loaded, score:', highScore);
     } else {
-      console.warn('No profiles row for user yet — using cached/metadata score');
+      console.warn('No profiles row — creating from auth metadata');
+      await supabase.from('profiles').upsert({
+        id: currentUser.id,
+        username,
+        score: highScore || 0
+      });
     }
   } catch (e) {
     console.warn('Failed retrieving profiles record:', e.message, e);
@@ -1148,8 +1113,12 @@ async function fetchAndRenderLeaderboard() {
   }
 
   try {
-    const session = await ensureAuthSession();
-    if (!session) {
+    if (!currentUser && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) currentUser = session.user;
+    }
+
+    if (!currentUser) {
       renderLeaderboardError('Log in to view the leaderboard');
       return;
     }
