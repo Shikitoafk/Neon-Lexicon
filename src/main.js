@@ -1,77 +1,56 @@
 import { supabase } from './supabase.js';
 
-// City of Words: Survival 3D - Three.js FPS Typing Engine with Supabase Auth & Profile Sync
+// Neon Lexicon: Survival 3D - Three.js FPS Typing Engine with Supabase Auth & Profile Sync
 
-// ==================== SURVIVAL DICTIONARY POOL (60+ Words) ====================
+// ==================== SURVIVAL DICTIONARY POOL (Expanded) ====================
 const FALLBACK_VOCAB = [
-  // Easy/Short words (Level 1)
-  { en: "run", ru: "бежать", level: 1 },
-  { en: "hide", ru: "прятаться", level: 1 },
-  { en: "dark", ru: "темный", level: 1 },
-  { en: "city", ru: "город", level: 1 },
-  { en: "ammo", ru: "патроны", level: 1 },
-  { en: "fear", ru: "страх", level: 1 },
-  { en: "dead", ru: "мертвый", level: 1 },
-  { en: "prey", ru: "добыча", level: 1 },
-  { en: "gate", ru: "ворота", level: 1 },
-  { en: "look", ru: "смотреть", level: 1 },
-  { en: "safe", ru: "безопасный", level: 1 },
-  { en: "wall", ru: "стена", level: 1 },
-  { en: "door", ru: "дверь", level: 1 },
-  { en: "help", ru: "помощь", level: 1 },
-  { en: "seek", ru: "искать", level: 1 },
-  { en: "trap", ru: "ловушка", level: 1 },
-  { en: "cold", ru: "холодный", level: 1 },
-  { en: "rust", ru: "ржавчина", level: 1 },
-  { en: "kill", ru: "убить", level: 1 },
-  { en: "grit", ru: "твердость", level: 1 },
+  // Level 1: Beginner (1-2 chars)
+  { en: "a", ru: "артикль", level: 1 },
+  { en: "an", ru: "артикль", level: 1 },
+  { en: "the", ru: "артикль", level: 1 },
+  { en: "in", ru: "в", level: 1 },
+  { en: "at", ru: "у", level: 1 },
+  { en: "to", ru: "к", level: 1 },
+  { en: "up", ru: "вверх", level: 1 },
+  { en: "do", ru: "делать", level: 1 },
+  
+  // Level 2: Medium (3-5 chars)
+  { en: "time", ru: "время", level: 2 },
+  { en: "world", ru: "мир", level: 2 },
+  { en: "learn", ru: "учить", level: 2 },
+  { en: "help", ru: "помощь", level: 2 },
+  { en: "city", ru: "город", level: 2 },
+  { en: "ammo", ru: "патроны", level: 2 },
+  { en: "fear", ru: "страх", level: 2 },
+  { en: "look", ru: "смотреть", level: 2 },
 
-  // Medium words (Level 2)
-  { en: "danger", ru: "опасность", level: 2 },
-  { en: "escape", ru: "побег", level: 2 },
-  { en: "shadow", ru: "тень", level: 2 },
-  { en: "zombie", ru: "зомби", level: 2 },
-  { en: "horror", ru: "ужас", level: 2 },
-  { en: "street", ru: "улица", level: 2 },
-  { en: "hunter", ru: "охотник", level: 2 },
-  { en: "silent", ru: "тихий", level: 2 },
-  { en: "weapon", ru: "оружие", level: 2 },
-  { en: "scream", ru: "крик", level: 2 },
-  { en: "attack", ru: "атака", level: 2 },
-  { en: "corpse", ru: "труп", level: 2 },
-  { en: "undead", ru: "нежить", level: 2 },
-  { en: "tunnel", ru: "туннель", level: 2 },
-  { en: "hazard", ru: "угроза", level: 2 },
-  { en: "search", ru: "поиск", level: 2 },
-  { en: "signal", ru: "сигнал", level: 2 },
-  { en: "broken", ru: "сломанный", level: 2 },
-  { en: "siren", ru: "сирена", level: 2 },
-  { en: "refuge", ru: "убежище", level: 2 },
-
-  // Long/Hard words (Level 3+)
+  // Level 3: Hard (6+ chars)
+  { en: "polyglot", ru: "полиглот", level: 3 },
+  { en: "paraphrase", ru: "парафраз", level: 3 },
+  { en: "orthography", ru: "орфография", level: 3 },
   { en: "survival", ru: "выживание", level: 3 },
   { en: "apocalypse", ru: "апокалипсис", level: 3 },
   { en: "infection", ru: "инфекция", level: 3 },
-  { en: "barricade", ru: "баррикада", level: 3 },
-  { en: "creature", ru: "существо", level: 3 },
-  { en: "evacuation", ru: "эвакуация", level: 3 },
-  { en: "nightmare", ru: "кошмар", level: 3 },
-  { en: "darkness", ru: "темнота", level: 3 },
   { en: "building", ru: "здание", level: 3 },
-  { en: "ammunition", ru: "боеприпасы", level: 3 },
-  { en: "devastated", ru: "опустошенный", level: 3 },
-  { en: "infestation", ru: "заражение", level: 3 },
-  { en: "abandoned", ru: "заброшенный", level: 3 },
-  { en: "laboratory", ru: "лаборатория", level: 3 },
-  { en: "quarantine", ru: "карантин", level: 3 },
-  { en: "destroyer", ru: "разрушитель", level: 3 },
-  { en: "radiation", ru: "радиация", level: 3 },
-  { en: "headshot", ru: "выстрел в голову", level: 3 },
   { en: "adrenaline", ru: "адреналин", level: 3 },
-  { en: "claustrophobia", ru: "клаустрофобия", level: 3 }
+
+  // Special: Academic Words
+  { en: "education", ru: "образование", level: 2, type: 'academic' },
+  { en: "research", ru: "исследование", level: 3, type: 'academic' },
+  { en: "knowledge", ru: "знание", level: 3, type: 'academic' },
+
+  // Special: Hyper-bot Words
+  { en: "disconnect", ru: "отключить", level: 3, type: 'hyperbot' },
+  { en: "reboot", ru: "перезагрузка", level: 2, type: 'hyperbot' },
+  { en: "delete", ru: "удалить", level: 2, type: 'hyperbot' },
+
+  // Special: Lexicographer Words
+  { en: "theophilanthropy", ru: "теофилантропия", level: 3, type: 'lexicographer' },
+  { en: "photobiology", ru: "фотобиология", level: 3, type: 'lexicographer' },
+  { en: "paralanguage", ru: "паралингвистика", level: 3, type: 'lexicographer' }
 ];
 
-// ==================== SOUND SYNTH SYSTEM (Web Audio API) ====================
+// ==================== SOUND SYNTH SYSTEM ====================
 const SoundSynth = {
   ctx: null,
 
@@ -221,6 +200,12 @@ let currentUser = null;
 let authListenerActive = true;
 let animationFrameId = null;
 let selectedCategory = 'all';
+let currentLevelTheme = 'city'; // 'forest', 'city', 'factory'
+
+// Progression
+let playerXP = 0;
+let playerLevel = 1;
+let currentWave = 1;
 
 // ==================== THREE.JS 3D VARIABLES ====================
 let scene, camera, renderer, labelRenderer;
@@ -228,7 +213,7 @@ let controls;
 let cityGroup;
 let clock = new THREE.Clock();
 
-// ==================== SHARED GEOMETRIES & MATERIALS POOL (Lag Elimination) ====================
+// ==================== SHARED GEOMETRIES & MATERIALS POOL ====================
 let boxGeoShared, octaGeoShared, torusGeoShared, coneGeoShared, ringGeoShared, laserGeoShared;
 let buildingBaseMaterials = [];
 let neonMaterials = {};
@@ -267,7 +252,6 @@ function initSharedAssets() {
     neonMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
     explosionMaterials[color] = new THREE.MeshBasicMaterial({ color: color });
     
-    // Pre-allocate transparent wireframe materials for skyscraper holograms to prevent laggy shader compilations
     holoMaterials[color] = new THREE.MeshBasicMaterial({ 
       color: color, 
       wireframe: true, 
@@ -313,7 +297,7 @@ function initSharedAssets() {
 let isPlaying = false;
 let lives = 3;
 let kills = 0;
-let currentLevel = 1;
+let currentDifficulty = 1;
 let activeTarget = null;
 let activeZombies = [];
 let activeLasers = [];
@@ -334,17 +318,12 @@ let spawnInterval = 4000;
 let buildingBoundingBoxes = [];
 let buildingHolograms = [];
 
-// ==================== DEFERRED GAME INITIALIZATION (Ref-Lock Resolution) ====================
+// ==================== DEFERRED GAME INITIALIZATION ====================
 let isGameInitialized = false;
 
 function initializeGame() {
-  if (isGameInitialized) {
-    console.log("initializeGame() skipped — already initialized.");
-    return;
-  }
+  if (isGameInitialized) return;
   isGameInitialized = true;
-
-  console.log("Initializing Three.js WebGL Engine, UI listeners, and game loop.");
   init3D();
   setupUIListeners();
   startRenderLoop();
@@ -377,10 +356,10 @@ function hideLoadingOverlay() {
   }
 }
 
-// ==================== SECURE SESSION MANAGER & PROTECTED APP FLOW ====================
+// ==================== SECURE SESSION MANAGER ====================
 function setupSessionManager() {
   if (!supabase) {
-    showAlert("Database not connected. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables in Vercel/Local.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
+    showAlert("Database not connected. Offline mode.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
     initializeGame();
     transitionToApp(false);
     hideLoadingOverlay();
@@ -388,7 +367,6 @@ function setupSessionManager() {
   }
 
   let bootstrapped = false;
-
   const bootstrapApp = (session) => {
     if (session?.user) {
       currentUser = session.user;
@@ -396,7 +374,6 @@ function setupSessionManager() {
       transitionToApp(true);
       hideLoadingOverlay();
       bootstrapped = true;
-      // Never call getSession inside onAuthStateChange — defer profile load
       setTimeout(() => loadUserProfile(), 0);
     } else if (!bootstrapped) {
       currentUser = null;
@@ -409,7 +386,6 @@ function setupSessionManager() {
 
   const fallbackTimeout = setTimeout(() => {
     if (!bootstrapped) {
-      console.warn("Auth bootstrap timed out — checking session once.");
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!bootstrapped) bootstrapApp(session);
       });
@@ -418,15 +394,11 @@ function setupSessionManager() {
 
   supabase.auth.onAuthStateChange((event, session) => {
     if (!authListenerActive) return;
-
-    console.log("Auth State Changed Event:", event, session?.user?.id ?? 'no-user');
-
     if (event === 'INITIAL_SESSION') {
       clearTimeout(fallbackTimeout);
       bootstrapApp(session);
       return;
     }
-
     if (event === 'SIGNED_IN' && session?.user) {
       clearTimeout(fallbackTimeout);
       currentUser = session.user;
@@ -437,13 +409,6 @@ function setupSessionManager() {
       setTimeout(() => loadUserProfile(), 0);
       return;
     }
-
-    if (event === 'TOKEN_REFRESHED' && session?.user) {
-      currentUser = session.user;
-      setTimeout(() => loadUserProfile(), 0);
-      return;
-    }
-
     if (event === 'SIGNED_OUT') {
       currentUser = null;
       bootstrapped = false;
@@ -455,14 +420,9 @@ function setupSessionManager() {
 function transitionToApp(isAuthenticated) {
   const authScreen = document.getElementById('authScreen');
   const mainMenu = document.getElementById('mainMenu');
-
   if (isAuthenticated && currentUser) {
     authScreen.classList.add('hidden');
     mainMenu.classList.remove('hidden');
-
-    // Defeat HUD Status bar text
-    document.getElementById('scoreSyncStatus').innerText = "PROGRESS AUTO-SYNCED TO PROFILE";
-    document.getElementById('scoreSyncStatus').className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
   } else {
     authScreen.classList.remove('hidden');
     mainMenu.classList.add('hidden');
@@ -475,18 +435,8 @@ function updateHighScoreUI(score) {
   if (highScoreEl) highScoreEl.innerText = highScore;
 }
 
-async function ensureAuthSession() {
-  if (!supabase) return null;
-  if (currentUser) return { user: currentUser };
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) console.warn('ensureAuthSession:', error.message);
-  if (session?.user) currentUser = session.user;
-  return session;
-}
-
 async function loadUserProfile() {
   if (!currentUser) return;
-
   const meta = currentUser.user_metadata || {};
   let username = meta.username || (currentUser.email ? currentUser.email.split('@')[0] : 'Runner');
   let avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
@@ -495,132 +445,86 @@ async function loadUserProfile() {
   document.getElementById('userAvatar').src = avatar;
 
   const cachedScore = storage.getItem(`highscore_${currentUser.id}`);
-  if (cachedScore !== null) {
-    updateHighScoreUI(cachedScore);
-  }
+  if (cachedScore !== null) updateHighScoreUI(cachedScore);
 
   if (currentUser.id === 'guest') {
     username = storage.getItem('guest_username') || 'Guest';
-    avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     document.getElementById('userName').innerText = username.toUpperCase();
-    document.getElementById('userAvatar').src = avatar;
     updateHighScoreUI(storage.getItem('guest_high_score') || '0');
     return;
   }
-
   if (!supabase) return;
-
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username, avatar_url, score')
-      .eq('id', currentUser.id)
-      .maybeSingle();
-
-    if (error) throw error;
-
+    const { data } = await supabase.from('profiles').select('username, avatar_url, score').eq('id', currentUser.id).maybeSingle();
     if (data) {
-      username = data.username || username;
-      avatar = data.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-      document.getElementById('userName').innerText = username.toUpperCase();
-      document.getElementById('userAvatar').src = avatar;
+      document.getElementById('userName').innerText = data.username.toUpperCase();
       updateHighScoreUI(data.score);
       storage.setItem(`highscore_${currentUser.id}`, String(highScore));
-      console.log('Profile loaded, score:', highScore);
-    } else {
-      console.warn('No profiles row — creating from auth metadata');
-      await supabase.from('profiles').upsert({
-        id: currentUser.id,
-        username,
-        score: highScore || 0
-      });
     }
-  } catch (e) {
-    console.warn('Failed retrieving profiles record:', e.message, e);
-  }
+  } catch (e) {}
 }
 
-// ==================== PROCEDURAL INFRASTRUCTURE BUILDER ====================
+// ==================== PROCEDURAL INFRASTRUCTURE ====================
 function createCity() {
-  // Clear CSS2D labels DOM to avoid memory leak build-ups
   const css2dContainer = document.getElementById('css2d-renderer');
   if (css2dContainer) {
     css2dContainer.innerHTML = '';
-    if (labelRenderer && labelRenderer.domElement) {
-      css2dContainer.appendChild(labelRenderer.domElement);
-    }
+    if (labelRenderer && labelRenderer.domElement) css2dContainer.appendChild(labelRenderer.domElement);
   }
 
-  // Clear cityGroup elements safely
   if (cityGroup) {
-    while (cityGroup.children.length > 0) {
-      cityGroup.remove(cityGroup.children[0]);
-    }
+    while (cityGroup.children.length > 0) cityGroup.remove(cityGroup.children[0]);
   }
 
   buildingBoundingBoxes = [];
   buildingHolograms = [];
 
+  // Theme styling
+  if (currentLevelTheme === 'forest') {
+    scene.background = new THREE.Color(0x0a1a0a);
+    scene.fog.color = new THREE.Color(0x0a1a0a);
+    scene.fog.density = 0.02;
+  } else if (currentLevelTheme === 'factory') {
+    scene.background = new THREE.Color(0x1a1a1a);
+    scene.fog.color = new THREE.Color(0x1a1a1a);
+    scene.fog.density = 0.015;
+  } else {
+    scene.background = new THREE.Color(0x0f051d);
+    scene.fog.color = new THREE.Color(0x0f051d);
+    scene.fog.density = 0.011;
+  }
+
   const neonColors = [0x00f0ff, 0xff007f, 0x39ff14, 0xffcb05];
-  
   for (let i = 0; i < 45; i++) {
     const w = 12 + Math.random() * 16;
     const h = 20 + Math.random() * 55;
     const d = 12 + Math.random() * 16;
 
-    // Reuse shared base material and box geometry
     const bMat = buildingBaseMaterials[Math.floor(Math.random() * buildingBaseMaterials.length)];
     const building = new THREE.Mesh(boxGeoShared, bMat);
     building.scale.set(w, h, d);
 
     let bx = (Math.random() - 0.5) * 220;
     let bz = (Math.random() - 0.5) * 220;
-
     if (Math.abs(bx) < 18 && Math.abs(bz) < 18) {
       bx += bx > 0 ? 25 : -25;
       bz += bz > 0 ? 25 : -25;
     }
-
     building.position.set(bx, h / 2, bz);
     cityGroup.add(building);
+    buildingBoundingBoxes.push(new THREE.Box3().setFromObject(building));
 
-    // Bounding Box (recomputes based on current scale)
-    const box = new THREE.Box3().setFromObject(building);
-    buildingBoundingBoxes.push(box);
-
-    // Neon pillars - Reuse boxGeoShared and pre-created neonMaterials
     const pipeColor = neonColors[Math.floor(Math.random() * neonColors.length)];
     const pipeMat = neonMaterials[pipeColor];
-
-    const offsets = [
-      { x: -w/2, z: -d/2 }, { x: w/2, z: -d/2 },
-      { x: -w/2, z: d/2 }, { x: w/2, z: d/2 }
-    ];
-
-    offsets.forEach(offset => {
+    [{ x: -w/2, z: -d/2 }, { x: w/2, z: -d/2 }, { x: -w/2, z: d/2 }, { x: w/2, z: d/2 }].forEach(offset => {
       const pipe = new THREE.Mesh(boxGeoShared, pipeMat);
       pipe.scale.set(0.4, h, 0.4);
       pipe.position.set(bx + offset.x, h / 2, bz + offset.z);
       cityGroup.add(pipe);
     });
 
-    // Window bands - Reuse boxGeoShared and neonMaterials
-    const windowColor = neonColors[Math.floor(Math.random() * neonColors.length)];
-    const winMat = neonMaterials[windowColor];
-
-    const bandCount = 3 + Math.floor(Math.random() * 4);
-    for (let b = 0; b < bandCount; b++) {
-      const bandHeight = (h / (bandCount + 1)) * (b + 1);
-      const band = new THREE.Mesh(boxGeoShared, winMat);
-      band.scale.set(w + 0.1, 0.45, d + 0.1);
-      band.position.set(bx, bandHeight, bz);
-      cityGroup.add(band);
-    }
-
-    // Top Holograms - Reuse octaGeoShared and pre-allocated holoMaterials
     if (h > 45) {
-      const holoMat = holoMaterials[pipeColor];
-      const holo = new THREE.Mesh(octaGeoShared, holoMat);
+      const holo = new THREE.Mesh(octaGeoShared, holoMaterials[pipeColor]);
       holo.scale.set(2.2, 2.2, 2.2);
       holo.position.set(bx, h + 3.5, bz);
       cityGroup.add(holo);
@@ -628,69 +532,31 @@ function createCity() {
     }
   }
 
-  // Border Walls - Reuse boxGeoShared, wallMaterial, and wallNeonMaterial
-  const northWall = new THREE.Mesh(boxGeoShared, wallMaterial);
-  northWall.scale.set(300, 20, 4);
-  northWall.position.set(0, 10, -150);
-  cityGroup.add(northWall);
-  buildingBoundingBoxes.push(new THREE.Box3().setFromObject(northWall));
-
-  const northWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
-  northWallNeon.scale.set(300, 0.6, 4.2);
-  northWallNeon.position.set(0, 18, -150);
-  cityGroup.add(northWallNeon);
-
-  const southWall = new THREE.Mesh(boxGeoShared, wallMaterial);
-  southWall.scale.set(300, 20, 4);
-  southWall.position.set(0, 10, 150);
-  cityGroup.add(southWall);
-  buildingBoundingBoxes.push(new THREE.Box3().setFromObject(southWall));
-
-  const southWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
-  southWallNeon.scale.set(300, 0.6, 4.2);
-  southWallNeon.position.set(0, 18, 150);
-  cityGroup.add(southWallNeon);
-
-  const eastWall = new THREE.Mesh(boxGeoShared, wallMaterial);
-  eastWall.scale.set(4, 20, 300);
-  eastWall.position.set(150, 10, 0);
-  cityGroup.add(eastWall);
-  buildingBoundingBoxes.push(new THREE.Box3().setFromObject(eastWall));
-
-  const eastWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
-  eastWallNeon.scale.set(4.2, 0.6, 300);
-  eastWallNeon.position.set(150, 18, 0);
-  cityGroup.add(eastWallNeon);
-
-  const westWall = new THREE.Mesh(boxGeoShared, wallMaterial);
-  westWall.scale.set(4, 20, 300);
-  westWall.position.set(-150, 10, 0);
-  cityGroup.add(westWall);
-  buildingBoundingBoxes.push(new THREE.Box3().setFromObject(westWall));
-
-  const westWallNeon = new THREE.Mesh(boxGeoShared, wallNeonMaterial);
-  westWallNeon.scale.set(4.2, 0.6, 300);
-  westWallNeon.position.set(-150, 18, 0);
-  cityGroup.add(westWallNeon);
+  const wallParts = [
+    { s: [300, 20, 4], p: [0, 10, -150] },
+    { s: [300, 20, 4], p: [0, 10, 150] },
+    { s: [4, 20, 300], p: [150, 10, 0] },
+    { s: [4, 20, 300], p: [-150, 10, 0] }
+  ];
+  wallParts.forEach(wp => {
+    const w = new THREE.Mesh(boxGeoShared, wallMaterial);
+    w.scale.set(...wp.s);
+    w.position.set(...wp.p);
+    cityGroup.add(w);
+    buildingBoundingBoxes.push(new THREE.Box3().setFromObject(w));
+  });
 }
 
-// ==================== ENGINE SETUP ====================
 function init3D() {
   const canvasElement = document.getElementById('webgl-canvas');
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0f051d);
   scene.fog = new THREE.FogExp2(0x0f051d, 0.011);
 
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
-  camera.position.set(0, 1.8, 0);
-  camera.up.set(0, 1, 0);
-  camera.rotation.set(0, 0, 0);
-
   renderer = new THREE.WebGLRenderer({ canvas: canvasElement, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // CSS2D
   labelRenderer = new THREE.CSS2DRenderer();
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
   labelRenderer.domElement.style.position = 'absolute';
@@ -698,49 +564,20 @@ function init3D() {
   labelRenderer.domElement.style.pointerEvents = 'none';
   document.getElementById('css2d-renderer').appendChild(labelRenderer.domElement);
 
-  // Initialize Persistent City Group
   cityGroup = new THREE.Group();
   scene.add(cityGroup);
 
-  // Set up environmental lights once globally (prevents memory leak compile lag)
-  const hemiLight = new THREE.HemisphereLight(0xa855f7, 0x1e1b4b, 1.15);
-  scene.add(hemiLight);
-
+  scene.add(new THREE.HemisphereLight(0xa855f7, 0x1e1b4b, 1.15));
   const moonLight = new THREE.DirectionalLight(0xf43f5e, 1.6);
   moonLight.position.set(40, 80, 40);
   scene.add(moonLight);
 
-  const floorGeo = new THREE.PlaneGeometry(300, 300);
-  const floorMat = new THREE.MeshStandardMaterial({ 
-    color: 0x070311, 
-    roughness: 0.35, 
-    metalness: 0.85 
-  });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(300, 300), new THREE.MeshStandardMaterial({ color: 0x070311, roughness: 0.35, metalness: 0.85 }));
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
 
-  const gridHelper = new THREE.GridHelper(300, 60, 0x00f0ff, 0xa855f7);
-  gridHelper.position.y = 0.02;
-  scene.add(gridHelper);
-
-  // Controls
   controls = new THREE.PointerLockControls(camera, renderer.domElement);
-  resetCameraOrientation();
-
-  controls.addEventListener('lock', () => {
-    document.getElementById('blockerOverlay').classList.add('hidden');
-  });
-
-  controls.addEventListener('unlock', () => {
-    if (isPlaying) {
-      document.getElementById('blockerOverlay').classList.remove('hidden');
-    }
-  });
-
   window.addEventListener('resize', onWindowResize);
-
-  // Pre-allocate shared geometries and materials once on startup
   initSharedAssets();
 }
 
@@ -751,79 +588,55 @@ function onWindowResize() {
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// ==================== ALIEN SENTINEL DRONES AI ====================
+// ==================== ENEMY AI & SPAWNING ====================
 function spawnZombie() {
-  const levelFiltered = vocabList.filter(item => item.level === Math.min(3, currentLevel));
-  const pool = levelFiltered.length > 0 ? levelFiltered : vocabList;
-  if (pool.length === 0) return;
-  const wordObj = pool[Math.floor(Math.random() * pool.length)];
+  // Balance: Select difficulty based on wave/player level
+  let targetLevel = 1;
+  if (playerLevel > 3) targetLevel = Math.floor(Math.random() * 3) + 1;
+  else if (playerLevel > 1) targetLevel = Math.floor(Math.random() * 2) + 1;
+
+  // Determine Type
+  let type = 'grunt';
+  const dice = Math.random();
+  if (playerLevel >= 3 && dice > 0.8) type = 'hyperbot';
+  else if (playerLevel >= 2 && dice > 0.6) type = 'academic';
+  else if (playerLevel >= 2 && dice > 0.5) type = 'lexicographer';
+
+  const pool = vocabList.filter(item => item.level === targetLevel && (item.type || 'grunt') === (type === 'grunt' ? undefined : type));
+  const wordObj = (pool.length > 0) ? pool[Math.floor(Math.random() * pool.length)] : vocabList[Math.floor(Math.random() * vocabList.length)];
 
   const angle = Math.random() * Math.PI * 2;
   const dist = 35 + Math.random() * 25;
   const zX = camera.position.x + Math.cos(angle) * dist;
   const zZ = camera.position.z + Math.sin(angle) * dist;
 
-  const zColor = currentLevel === 1 ? 0x39ff14 : (currentLevel === 2 ? 0xffcb05 : 0xff007f);
-  
+  let zColor = 0x39ff14;
+  let speedMultiplier = 1.0;
+  if (type === 'academic') { zColor = 0xffcb05; speedMultiplier = 1.6; }
+  if (type === 'hyperbot') { zColor = 0x00f0ff; speedMultiplier = 2.2; }
+  if (type === 'lexicographer') { zColor = 0xff007f; speedMultiplier = 0.8; }
+
   const zMesh = new THREE.Group();
   zMesh.position.set(zX, 1.25, zZ);
   
-  // Core - Reuse octaGeoShared and droneCoreMaterials
-  const zLvlKey = Math.min(3, currentLevel);
-  const coreMat = droneCoreMaterials[zLvlKey];
-  const coreMesh = new THREE.Mesh(octaGeoShared, coreMat);
+  const coreMesh = new THREE.Mesh(octaGeoShared, droneCoreMaterials[targetLevel]);
   coreMesh.scale.set(0.42, 0.42, 0.42);
   coreMesh.name = "core";
   zMesh.add(coreMesh);
 
-  // Torus Halo ring - Reuse torusGeoShared and neonMaterials
-  const ringMat = neonMaterials[zColor];
-  const ringMesh = new THREE.Mesh(torusGeoShared, ringMat);
+  const ringMesh = new THREE.Mesh(torusGeoShared, neonMaterials[zColor]);
   ringMesh.rotation.x = Math.PI / 2;
   ringMesh.name = "halo";
   zMesh.add(ringMesh);
 
-  // Arachnid mechanical spikes - Reuse coneGeoShared and droneLegMaterial
-  const legCount = 4;
-  for (let i = 0; i < legCount; i++) {
-    const angleOffset = (i / legCount) * Math.PI * 2;
-    const leg = new THREE.Mesh(coneGeoShared, droneLegMaterial);
-    leg.position.set(Math.cos(angleOffset) * 0.32, -0.38, Math.sin(angleOffset) * 0.32);
-    leg.rotation.z = Math.cos(angleOffset) * 0.25;
-    leg.rotation.x = Math.sin(angleOffset) * 0.25;
-    zMesh.add(leg);
-  }
-
-  // visors - Reuse octaGeoShared (scaled down) and droneEyeMaterial
-  const eye = new THREE.Mesh(octaGeoShared, droneEyeMaterial);
-  eye.scale.set(0.09, 0.09, 0.09);
-  eye.position.set(0, 0.05, 0.4);
-  zMesh.add(eye);
-
-  // Floor Projection targeting ring - Reuse ringGeoShared and droneProjMaterials
-  const projMat = droneProjMaterials[zLvlKey];
-  const projMesh = new THREE.Mesh(ringGeoShared, projMat);
-  projMesh.name = "projection";
-  projMesh.position.set(0, -1.23, 0);
-  zMesh.add(projMesh);
-
   scene.add(zMesh);
 
-  // CSS2D HTML label
   const labelDiv = document.createElement('div');
   labelDiv.className = 'css2d-word-label';
-  labelDiv.innerHTML = `
-    <div class="css2d-pill">
-      <span class="css2d-en-text">${wordObj.en.toUpperCase()}</span>
-    </div>
-    <span class="css2d-ru-text">${wordObj.ru}</span>
-  `;
-
+  labelDiv.innerHTML = `<div class="css2d-pill"><span class="css2d-en-text">${wordObj.en.toUpperCase()}</span></div><span class="css2d-ru-text">${wordObj.ru}</span>`;
   const cssLabel = new THREE.CSS2DObject(labelDiv);
   cssLabel.position.set(0, 1.25, 0);
   zMesh.add(cssLabel);
-
-  const baseSpeed = 1.6 + (currentLevel * 0.35);
 
   activeZombies.push({
     mesh: zMesh,
@@ -832,505 +645,80 @@ function spawnZombie() {
     word: wordObj.en,
     translation: wordObj.ru,
     activeCharIndex: 0,
-    speed: baseSpeed
+    speed: (1.6 + (playerLevel * 0.35)) * speedMultiplier,
+    type: type
   });
 }
 
 function cleanupZombie(z) {
   if (!z) return;
-  
-  if (z.label) {
-    if (z.mesh) {
-      z.mesh.remove(z.label);
-    }
-    if (z.label.element && z.label.element.parentNode) {
-      z.label.element.parentNode.removeChild(z.label.element);
-    }
-  } else if (z.labelElement && z.labelElement.parentNode) {
-    z.labelElement.parentNode.removeChild(z.labelElement);
-  }
-
-  if (z.mesh) {
-    scene.remove(z.mesh);
-    z.mesh.traverse(child => {
-      if (child.isMesh) {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => m.dispose());
-          } else {
-            child.material.dispose();
-          }
-        }
-      }
-    });
-  }
+  if (z.label && z.mesh) z.mesh.remove(z.label);
+  if (z.mesh) scene.remove(z.mesh);
 }
 
 // Collisions
 function checkPlayerCollision(newPos) {
-  const pSize = 0.8;
-  const pBox = new THREE.Box3(
-    new THREE.Vector3(newPos.x - pSize, 0, newPos.z - pSize),
-    new THREE.Vector3(newPos.x + pSize, 10, newPos.z + pSize)
-  );
-
-  for (let box of buildingBoundingBoxes) {
-    if (box.intersectsBox(pBox)) {
-      return true;
-    }
-  }
-  return false;
+  const pBox = new THREE.Box3(new THREE.Vector3(newPos.x - 0.8, 0, newPos.z - 0.8), new THREE.Vector3(newPos.x + 0.8, 10, newPos.z + 0.8));
+  return buildingBoundingBoxes.some(box => box.intersectsBox(pBox));
 }
 
 // VFX
 function spawn3DLaser(endPos) {
   const startPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.25, camera.position.z);
   const distance = startPos.distanceTo(endPos);
-  
   const laserMesh = new THREE.Mesh(laserGeoShared, laserMatShared);
   laserMesh.scale.set(0.04, 0.04, distance);
-  
   laserMesh.position.copy(startPos);
   laserMesh.lookAt(endPos);
   laserMesh.translateZ(distance / 2);
-
   scene.add(laserMesh);
   activeLasers.push({ mesh: laserMesh, scale: 1.0 });
 }
 
 function spawnExplosionVFX(pos, colorHex) {
-  const pCount = 18;
-  const mat = explosionMaterials[colorHex] || neonMaterials[colorHex] || new THREE.MeshBasicMaterial({ color: colorHex });
-  for (let i = 0; i < pCount; i++) {
-    const pMesh = new THREE.Mesh(boxGeoShared, mat);
+  for (let i = 0; i < 12; i++) {
+    const pMesh = new THREE.Mesh(boxGeoShared, explosionMaterials[colorHex] || neonMaterials[0x39ff14]);
     pMesh.scale.set(0.15, 0.15, 0.15);
     pMesh.position.copy(pos);
     scene.add(pMesh);
-
     explosionParticles.push({
       mesh: pMesh,
-      vx: (Math.random() - 0.5) * 8,
-      vy: Math.random() * 8,
-      vz: (Math.random() - 0.5) * 8,
-      scale: 1.0,
-      decay: 0.02 + Math.random() * 0.025
+      vx: (Math.random() - 0.5) * 8, vy: Math.random() * 8, vz: (Math.random() - 0.5) * 8,
+      scale: 1.0, decay: 0.03
     });
   }
 }
 
-function triggerCameraShake(intensity, duration) {
-  shakeIntensity = intensity;
-  shakeTimeLeft = duration;
-}
-
-// ==================== AUTHENTICATION ACTIONS ====================
-async function handleAuthAction(mode) {
-  if (!supabase) {
-    showAlert("Database not connected. Cannot perform auth actions.", "bg-red-950/40 border border-red-500/35 text-red-400 font-bold");
-    return;
-  }
-
-  const email = document.getElementById('authEmailInput').value.trim();
-  const password = document.getElementById('authPasswordInput').value.trim();
-  const username = document.getElementById('authUsernameInput').value.trim();
-  const authSubmitBtn = document.getElementById('authSubmitBtn');
-
-  if (!email || !password) {
-    showAlert("Email and Password fields are required.", "bg-red-950/40 border border-red-500/35 text-red-400");
-    return;
-  }
-
-  if (authSubmitBtn) authSubmitBtn.disabled = true;
-  showAlert("Accessing matrix...", "bg-purple-950/30 border border-purple-500/20 text-purple-400 animate-pulse");
-
-  try {
-    if (mode === 'register') {
-      if (!username) {
-        showAlert("Alias Username is required for profile index.", "bg-red-950/40 border border-red-500/35 text-red-400");
-        return;
-      }
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username }
-        }
-      });
-
-      if (error) {
-        showAlert(`Reg Failed: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
-      } else if (data?.session) {
-        currentUser = data.user;
-        if (!isGameInitialized) initializeGame();
-        transitionToApp(true);
-        hideLoadingOverlay();
-        await loadUserProfile();
-        showAlert("Sign Up Successful! Welcome to the grid.", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
-        try {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            username: username,
-            score: 0
-          });
-        } catch (e) {
-          console.warn("Failed profiles upsert (trigger might have handled it):", e);
-        }
-      } else {
-        showAlert("Registration successful! Please check your email to confirm your account, then log in.", "bg-amber-950/40 border border-amber-500/30 text-amber-400 font-bold");
-      }
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        showAlert(`Access Denied: ${error.message}`, "bg-red-950/40 border border-red-500/35 text-red-400");
-      } else if (data?.session) {
-        currentUser = data.session.user;
-        if (!isGameInitialized) initializeGame();
-        transitionToApp(true);
-        hideLoadingOverlay();
-        await loadUserProfile();
-        showAlert("Access Authorized! Welcome back.", "bg-emerald-950/40 border border-emerald-500/35 text-emerald-400");
-      }
-    }
-  } finally {
-    if (authSubmitBtn) authSubmitBtn.disabled = false;
-  }
-}
-
-function showAlert(text, cssClass) {
-  const alertEl = document.getElementById('authAlert');
-  alertEl.innerText = text;
-  alertEl.className = `text-xs p-2.5 text-center font-bold rounded-lg transition-all duration-200 ${cssClass}`;
-  alertEl.classList.remove('hidden');
-}
-
-// ==================== GLOBAL LEADERBOARD INTEGRATION ====================
-function renderLeaderboardRows(data) {
-  const rowsContainer = document.getElementById('leaderboardRows');
-  if (!rowsContainer) return;
-  
-  rowsContainer.innerHTML = '';
-  data.forEach((row, index) => {
-    const rank = index + 1;
-    const username = row.username || 'Anonymous Runner';
-    const avatar = row.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
-    const highestScore = row.highest_score || 0;
-
-    let rankColorClass = 'text-slate-500';
-    let rowBorderClass = 'border-slate-900 bg-slate-950/40';
-    if (rank === 1) {
-      rankColorClass = 'text-brawlYellow font-logo text-xl';
-      rowBorderClass = 'border-brawlYellow/30 bg-amber-950/10 shadow-[0_0_10px_rgba(255,203,5,0.05)]';
-    } else if (rank === 2) {
-      rankColorClass = 'text-slate-200';
-      rowBorderClass = 'border-slate-400/25 bg-slate-900/20';
-    } else if (rank === 3) {
-      rankColorClass = 'text-amber-600';
-      rowBorderClass = 'border-amber-700/25 bg-orange-950/10';
-    }
-
-    const rowHtml = `
-      <div class="grid grid-cols-12 items-center px-4 py-2.5 border ${rowBorderClass} rounded-xl transition-all duration-200 hover:scale-[1.01] hover:bg-slate-900/30">
-        <div class="col-span-2 font-logo text-lg ${rankColorClass}">#${rank}</div>
-        <div class="col-span-6 flex items-center gap-3">
-          <img src="${avatar}" class="w-7 h-7 rounded-full border border-purple-500/20 shadow-md select-none">
-          <span class="font-bold text-white text-sm truncate max-w-[160px] select-all">${username}</span>
-        </div>
-        <div class="col-span-4 text-right font-logo text-brawlYellow text-lg">${highestScore}</div>
-      </div>
-    `;
-    rowsContainer.insertAdjacentHTML('beforeend', rowHtml);
-  });
-}
-
-function renderLeaderboardEmpty() {
-  const rowsContainer = document.getElementById('leaderboardRows');
-  if (!rowsContainer) return;
-  rowsContainer.innerHTML = `
-    <div class="text-center py-8 text-slate-500 text-xs uppercase tracking-widest border border-slate-900 rounded-xl p-4 bg-slate-950/20">
-      No records found. Complete a match to set your score!
-    </div>
-  `;
-}
-
-function renderLeaderboardError(message) {
-  const rowsContainer = document.getElementById('leaderboardRows');
-  if (!rowsContainer) return;
-  rowsContainer.innerHTML = `
-    <div class="text-center py-8 text-brawlRed text-xs uppercase tracking-widest border border-brawlRed/20 rounded-xl p-4 bg-red-950/5">
-      ${message}
-    </div>
-  `;
-}
-
-async function queryLeaderboardTable(table, select, orderColumn) {
-  const res = await supabase
-    .from(table)
-    .select(select)
-    .order(orderColumn, { ascending: false })
-    .limit(10);
-  console.log(`Supabase '${table}' query response data:`, res.data);
-  console.log(`Supabase '${table}' query response error:`, res.error);
-  return res;
-}
-
-function normalizeLeaderboardRows(rows, scoreKey = 'highest_score') {
-  return (rows || []).map((item) => ({
-    username: item.username || 'Anonymous Runner',
-    avatar_url: item.avatar_url,
-    highest_score: item[scoreKey] ?? item.score ?? item.highest_score ?? 0,
-  }));
-}
-
-async function fetchAndRenderLeaderboard() {
-  const rowsContainer = document.getElementById('leaderboardRows');
-  if (!rowsContainer) return;
-
-  rowsContainer.innerHTML = `
-    <div class="text-center py-8 text-slate-500 text-sm">
-      <span class="animate-pulse">RETRIEVING LEADERBOARD DATA...</span>
-    </div>
-  `;
-
-  // Fallback to guest offline mock leaderboard if Supabase is offline
-  if (!supabase) {
-    console.log("Supabase not connected. Rendering offline local leaderboard fallback.");
-    const guestHighScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
-    const guestUsername = storage.getItem('guest_username') || 'Guest Runner';
-    const mockData = [
-      { username: guestUsername, highest_score: guestHighScore },
-      { username: "CYBER_NINJA", highest_score: 120 },
-      { username: "NEON_HUNTER", highest_score: 95 },
-      { username: "MATRIX_GLITCH", highest_score: 70 }
-    ].sort((a, b) => b.highest_score - a.highest_score);
-
-    renderLeaderboardRows(mockData);
-    return;
-  }
-
-  try {
-    if (!currentUser && supabase) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) currentUser = session.user;
-    }
-
-    if (!currentUser) {
-      renderLeaderboardError('Log in to view the leaderboard');
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username, avatar_url, score')
-      .order('score', { ascending: false })
-      .limit(10);
-
-    console.log("Supabase 'profiles' leaderboard response data:", data);
-    console.log("Supabase 'profiles' leaderboard response error:", error);
-
-    if (error) throw error;
-
-    const mapped = (data || []).map(item => ({
-      username: item.username || 'Anonymous Runner',
-      avatar_url: item.avatar_url,
-      highest_score: item.score ?? 0,
-    }));
-
-    if (mapped.length > 0) {
-      renderLeaderboardRows(mapped);
-    } else {
-      renderLeaderboardEmpty();
-    }
-  } catch (err) {
-    console.error("Leaderboard exception caught:", err);
-    renderLeaderboardError(
-      `Failed to fetch leaderboard: ${err.message || 'Unknown network error'}`
-    );
-  }
-}
-
-// ==================== SECURE PROGRESS SYNCHRONIZER ====================
-async function syncScoreToSupabase() {
-  const syncStatus = document.getElementById('scoreSyncStatus');
-  const finalScore = kills;
-
-  if (!currentUser || currentUser.id === 'guest') {
-    const guestHighScore = parseInt(storage.getItem('guest_high_score') || '0', 10);
-    if (finalScore > guestHighScore) {
-      storage.setItem('guest_high_score', finalScore);
-      highScore = finalScore;
-      const hsCountEl = document.getElementById('highScoreCount');
-      if (hsCountEl) hsCountEl.innerText = highScore;
-    }
-    syncStatus.innerText = "GUEST SCORE SAVED LOCALLY";
-    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
-    return;
-  }
-
-  // Only sync if finalScore is higher than the current highScore
-  if (finalScore <= highScore) {
-    console.log(`Skipping Supabase score sync: current match score (${finalScore}) is not greater than high score (${highScore})`);
-    syncStatus.innerText = "PROFILE SCORE AUTO-SYNCED";
-    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
-    return;
-  }
-
-  syncStatus.innerText = "SYNCHRONIZING SCORE...";
-  syncStatus.className = "text-[10px] uppercase tracking-widest text-brawlCyan font-bold bg-[#050f16] px-3 py-2 rounded-lg text-center mt-3 border border-brawlCyan/20 select-none animate-pulse";
-
-  const meta = currentUser.user_metadata || {};
-  const username = meta.username || currentUser.email.split('@')[0] || 'Runner';
-
-  // Run this in Supabase SQL Editor if profiles upsert returns 403 (RLS):
-  // CREATE POLICY "Users can update own profile" ON profiles
-  // FOR ALL USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: currentUser.id,
-        username: username,
-        score: finalScore
-      });
-
-    if (error) throw error;
-
-    console.log("Successfully upserted player profile scores to Supabase:", finalScore);
-    syncStatus.innerText = "PROFILE SCORE UPSERTED SUCCESS!";
-    syncStatus.className = "text-[10px] uppercase tracking-widest text-emerald-400 font-bold bg-[#071611] px-3 py-2 rounded-lg text-center mt-3 border border-emerald-500/20 select-none";
-
-    updateHighScoreUI(finalScore);
-    if (currentUser?.id) {
-      storage.setItem(`highscore_${currentUser.id}`, String(highScore));
-    }
-  } catch (err) {
-    console.warn("Score sync error:", err);
-  }
-}
-
-// ==================== HUD & RUN STATE CONTROLS ====================
+// ==================== UI & MATCH LOGIC ====================
 function updateHUD() {
   document.getElementById('matchKillsCount').innerText = kills;
-  document.getElementById('hudDifficultyLevel').innerText = `LEVEL ${currentLevel}`;
-
+  document.getElementById('hudDifficultyLevel').innerText = `LVL ${playerLevel} | WAVE ${currentWave}`;
+  
   let heartStr = '';
-  for (let i = 0; i < lives; i++) {
-    heartStr += '❤️';
-  }
-  if (heartStr === '') heartStr = 'DEFEATED';
-  document.getElementById('hudLivesContainer').innerText = heartStr;
+  for (let i = 0; i < lives; i++) heartStr += '❤️';
+  document.getElementById('hudLivesContainer').innerText = heartStr || 'DEFEATED';
+  
+  // XP Update (assuming exists in HTML)
+  const xpBar = document.getElementById('xpStatus');
+  if (xpBar) xpBar.innerText = `XP: ${playerXP}/10`;
 }
 
 function resetGameState() {
   isPlaying = false;
   lives = 3;
   kills = 0;
-  currentLevel = 1;
+  playerXP = 0;
+  playerLevel = 1;
+  currentWave = 1;
   activeTarget = null;
   spawnTimer = 0;
   spawnInterval = 4000;
-  activeKeys = {};
-  shakeTimeLeft = 0;
-  shakeIntensity = 0;
-  vocabList = [...FALLBACK_VOCAB];
-
   activeZombies.forEach(z => cleanupZombie(z));
   activeZombies = [];
-
-  activeLasers.forEach(l => { if (l.mesh) scene.remove(l.mesh); });
+  activeLasers.forEach(l => scene.remove(l.mesh));
   activeLasers = [];
-
-  explosionParticles.forEach(p => { if (p.mesh) scene.remove(p.mesh); });
+  explosionParticles.forEach(p => scene.remove(p.mesh));
   explosionParticles = [];
-}
-
-function updateCategoryCardSelection() {
-  document.querySelectorAll('.category-card').forEach((card) => {
-    if (card.dataset.category === selectedCategory) {
-      card.classList.add('category-card-selected');
-    } else {
-      card.classList.remove('category-card-selected');
-    }
-  });
-}
-
-function showCategoryScreen() {
-  selectedCategory = 'all';
-  updateCategoryCardSelection();
-  const hint = document.getElementById('categoryScreenHint');
-  if (hint) hint.innerText = '';
-  document.getElementById('mainMenu').classList.add('hidden');
-  document.getElementById('categoryScreen').classList.remove('hidden');
-}
-
-function hideCategoryScreenToMenu() {
-  document.getElementById('categoryScreen').classList.add('hidden');
-  document.getElementById('mainMenu').classList.remove('hidden');
-}
-
-function mapWordsRows(data) {
-  return (data || []).map((item) => {
-    const en = String(item.word ?? '').toLowerCase().trim();
-    const ru = String(item.translation ?? '').trim();
-    let level = parseInt(item.difficulty, 10);
-    if (Number.isNaN(level) || level < 1) {
-      level = (en.length <= 4) ? 1 : ((en.length <= 7) ? 2 : 3);
-    } else {
-      level = Math.min(3, Math.max(1, level));
-    }
-    return { en, ru, level };
-  }).filter((item) => item.en && item.ru);
-}
-
-async function loadWordsForMatch() {
-  const fallback = () => [...FALLBACK_VOCAB];
-
-  if (!supabase) {
-    console.warn('Supabase unavailable — using built-in word list');
-    return fallback();
-  }
-
-  const fetchWords = async () => {
-    let query = supabase.from('words').select('*');
-    if (selectedCategory !== 'all') {
-      query = query.eq('category', selectedCategory);
-    }
-    let { data, error } = await query;
-    if (error) throw error;
-
-    if (selectedCategory !== 'all' && (!data || data.length === 0)) {
-      console.warn(`No words for category "${selectedCategory}" — loading all words`);
-      const allRes = await supabase.from('words').select('*');
-      if (!allRes.error && allRes.data?.length) {
-        data = allRes.data;
-      }
-    }
-
-    if (data?.length) {
-      console.log('words table columns:', Object.keys(data[0]));
-    }
-
-    const mapped = mapWordsRows(data);
-    return mapped.length > 0 ? mapped : fallback();
-  };
-
-  try {
-    const timeout = new Promise((resolve) => {
-      setTimeout(() => resolve(null), 2500);
-    });
-    const result = await Promise.race([fetchWords(), timeout]);
-    if (result) return result;
-    console.warn('words fetch timed out — using built-in word list');
-    return fallback();
-  } catch (e) {
-    console.warn('Failed to load words:', e.message, '— using built-in word list');
-    return fallback();
-  }
 }
 
 async function startMatch() {
@@ -1342,612 +730,213 @@ async function startMatch() {
   document.getElementById('categoryScreen').classList.add('hidden');
   document.getElementById('matchView').classList.remove('hidden');
   document.getElementById('defeatOverlay').classList.add('hidden');
-  document.getElementById('blockerOverlay').classList.add('hidden');
 
   createCity();
-
   playerPosition.set(0, 1.8, 0);
   resetCameraOrientation();
 
-  vocabList = await loadWordsForMatch();
-  if (vocabList.length === 0) {
-    vocabList = [...FALLBACK_VOCAB];
-  }
-  console.log(`Match vocab ready: ${vocabList.length} words`);
-
+  vocabList = [...FALLBACK_VOCAB];
   isPlaying = true;
-  spawnTimer = spawnInterval;
-  clock.getDelta();
-
-  if (controls) {
-    try {
-      controls.lock();
-    } catch (e) {
-      console.warn('Pointer lock failed:', e);
-      document.getElementById('blockerOverlay').classList.remove('hidden');
-    }
-  }
-
-  triggerAnnounce("SURVIVE THE CITY!");
+  if (controls) controls.lock();
   updateHUD();
-}
-
-function triggerAnnounce(text) {
-  const el = document.getElementById('matchAnnounceText');
-  el.innerText = text;
-  el.className = "font-logo text-4xl md:text-6xl text-brawlRed tracking-wider scale-100 opacity-100 transition-all duration-300 z-10 select-none filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]";
-  
-  setTimeout(() => {
-    el.className = "font-logo text-4xl md:text-6xl text-brawlRed tracking-wider scale-75 opacity-0 transition-all duration-300 z-10 select-none";
-  }, 1600);
 }
 
 function endMatch() {
   authListenerActive = true;
   isPlaying = false;
-  activeKeys = {};
-  activeTarget = null;
-  const finalKills = kills;
-  const finalLevel = currentLevel;
-  resetGameState();
   if (controls) controls.unlock();
-  document.getElementById('blockerOverlay').classList.add('hidden');
-  SoundSynth.playVictory();
-
-  // Sync Defeat Screen info
-  document.getElementById('defeatKillsAmt').innerText = `${finalKills} Kills`;
-  document.getElementById('defeatDifficultyReached').innerText = `Level ${finalLevel}`;
-
-  // Upsert progress score to Supabase
-  kills = finalKills;
+  document.getElementById('defeatKillsAmt').innerText = `${kills} Kills`;
+  document.getElementById('defeatDifficultyReached').innerText = `Level ${playerLevel}`;
   syncScoreToSupabase();
-
   document.getElementById('defeatOverlay').classList.remove('hidden');
+  SoundSynth.playVictory();
 }
 
-function exitMatchToMenu() {
-  resetGameState();
-  if (controls) controls.unlock();
-
-  document.getElementById('matchView').classList.add('hidden');
-  document.getElementById('defeatOverlay').classList.add('hidden');
-  document.getElementById('blockerOverlay').classList.add('hidden');
-  document.getElementById('categoryScreen').classList.add('hidden');
-  document.getElementById('mainMenu').classList.remove('hidden');
-
-  activeKeys = {};
-  isPlaying = false;
-  activeTarget = null;
-  authListenerActive = true;
-}
-
-// ==================== 3D SURVIVAL LOOP ====================
-function stopGameLoop() {
-  if (animationFrameId !== null) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
+async function syncScoreToSupabase() {
+  if (!currentUser || currentUser.id === 'guest') return;
+  if (kills > highScore) {
+    try {
+      await supabase.from('profiles').upsert({ id: currentUser.id, score: kills });
+      updateHighScoreUI(kills);
+    } catch (e) {}
   }
+}
+
+// ==================== ENGINE LOOP ====================
+function stopGameLoop() {
+  if (animationFrameId) cancelAnimationFrame(animationFrameId);
 }
 
 function animate() {
   const dt = clock.getDelta();
   const time = clock.getElapsedTime();
-
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
     labelRenderer.render(scene, camera);
   }
-
   if (!isPlaying) {
     animationFrameId = requestAnimationFrame(animate);
     return;
   }
 
-  // 1. Movement handling (Arrow Keys)
-  const speed = 7.0;
+  // Movement
+  const moveSpeed = 7.0;
   const newPos = playerPosition.clone();
-  
-  const forwardVec = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  forwardVec.y = 0;
-  forwardVec.normalize();
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  right.y = 0; right.normalize();
 
-  const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  rightVec.y = 0;
-  rightVec.normalize();
+  if (activeKeys['ArrowUp']) newPos.addScaledVector(forward, moveSpeed * dt);
+  if (activeKeys['ArrowDown']) newPos.addScaledVector(forward, -moveSpeed * dt);
+  if (activeKeys['ArrowLeft']) newPos.addScaledVector(right, -moveSpeed * dt);
+  if (activeKeys['ArrowRight']) newPos.addScaledVector(right, moveSpeed * dt);
 
-  if (activeKeys['ArrowUp']) {
-    newPos.addScaledVector(forwardVec, speed * dt);
-  }
-  if (activeKeys['ArrowDown']) {
-    newPos.addScaledVector(forwardVec, -speed * dt);
-  }
-  if (activeKeys['ArrowLeft']) {
-    newPos.addScaledVector(rightVec, -speed * dt);
-  }
-  if (activeKeys['ArrowRight']) {
-    newPos.addScaledVector(rightVec, speed * dt);
-  }
-
-  if (!checkPlayerCollision(newPos)) {
-    playerPosition.copy(newPos);
-  } else {
-    // slide
-    const slideX = playerPosition.clone();
-    slideX.x = newPos.x;
-    if (!checkPlayerCollision(slideX)) {
-      playerPosition.copy(slideX);
-    } else {
-      const slideZ = playerPosition.clone();
-      slideZ.z = newPos.z;
-      if (!checkPlayerCollision(slideZ)) {
-        playerPosition.copy(slideZ);
-      }
-    }
-  }
-
-  playerPosition.y = 1.8;
+  if (!checkPlayerCollision(newPos)) playerPosition.copy(newPos);
   camera.position.copy(playerPosition);
 
-  // 2. Camera Shakes
-  if (shakeTimeLeft > 0) {
-    shakeTimeLeft -= dt;
-    camera.position.x += (Math.random() - 0.5) * shakeIntensity;
-    camera.position.y += (Math.random() - 0.5) * shakeIntensity;
-    camera.position.z += (Math.random() - 0.5) * shakeIntensity;
-  }
-
-  // 3. Spawner
-  const maxActive = currentLevel === 1 ? 3 : (currentLevel === 2 ? 5 : 8);
+  // Spawning
   spawnTimer += dt * 1000;
-  if (spawnTimer >= spawnInterval && activeZombies.length < maxActive) {
-    try {
-      spawnZombie();
-    } catch (e) {
-      console.error('spawnZombie failed:', e);
-    }
+  if (spawnTimer >= spawnInterval && activeZombies.length < (5 + playerLevel)) {
+    spawnZombie();
     spawnTimer = 0;
   }
 
-  // 4. Update Zombies AI
+  // Update Drones
   for (let i = activeZombies.length - 1; i >= 0; i--) {
     const z = activeZombies[i];
-    const bobOffset = Math.sin(time * 5 + i) * 0.14;
-    
     z.mesh.lookAt(playerPosition.x, z.mesh.position.y, playerPosition.z);
-    
-    const halo = z.mesh.getObjectByName("halo");
-    if (halo) {
-      halo.rotation.z = time * 3.5 + i;
-      halo.rotation.y = Math.sin(time + i) * 0.4;
-    }
-    const coreObj = z.mesh.getObjectByName("core");
-    if (coreObj) {
-      coreObj.rotation.y = -time * 2.0;
-      coreObj.rotation.x = Math.cos(time) * 0.2;
-    }
-    const proj = z.mesh.getObjectByName("projection");
-    if (proj) {
-      proj.position.y = -(1.25 + bobOffset) + 0.02;
-    }
-    
-    const direction = new THREE.Vector3().subVectors(playerPosition, z.mesh.position);
-    direction.y = 0;
-    direction.normalize();
-    
-    z.mesh.position.addScaledVector(direction, z.speed * dt);
-    z.mesh.position.y = 1.25 + bobOffset;
+    const dir = new THREE.Vector3().subVectors(playerPosition, z.mesh.position);
+    dir.y = 0; dir.normalize();
+    z.mesh.position.addScaledVector(dir, z.speed * dt);
+    z.mesh.position.y = 1.25 + Math.sin(time * 5 + i) * 0.1;
 
-    const dist = z.mesh.position.distanceTo(playerPosition);
-    if (dist <= 2.2) {
+    if (z.mesh.position.distanceTo(playerPosition) < 2.2) {
       spawnExplosionVFX(z.mesh.position, 0xef4444);
       SoundSynth.playHurt();
-      triggerCameraShake(0.8, 0.4);
-
       cleanupZombie(z);
       activeZombies.splice(i, 1);
-
-      if (activeTarget === z) {
-        activeTarget = null;
-        updateWordInputHUD();
-      }
-
+      if (activeTarget === z) activeTarget = null;
       lives--;
       updateHUD();
-
-      if (lives <= 0) {
-        endMatch();
-        break;
-      }
+      if (lives <= 0) endMatch();
     }
   }
 
-  // 5. Update Lasers
-  for (let i = activeLasers.length - 1; i >= 0; i--) {
-    const laser = activeLasers[i];
-    laser.scale *= 0.65;
-    laser.mesh.scale.set(0.04 * laser.scale, 0.04 * laser.scale, laser.mesh.scale.z);
-    if (laser.scale < 0.04) {
-      scene.remove(laser.mesh);
-      activeLasers.splice(i, 1);
-    }
-  }
-
-  // 6. Update Explosion Particles
-  for (let i = explosionParticles.length - 1; i >= 0; i--) {
-    const p = explosionParticles[i];
-    p.mesh.position.x += p.vx * dt;
-    p.mesh.position.y += p.vy * dt;
-    p.mesh.position.z += p.vz * dt;
-
-    p.scale -= p.decay;
-    p.mesh.scale.set(p.scale, p.scale, p.scale);
-
-    if (p.scale <= 0) {
-      scene.remove(p.mesh);
-      explosionParticles.splice(i, 1);
-    }
-  }
-
-  // 7. Skyscrapers Holograms
-  buildingHolograms.forEach(h => {
-    h.rotation.y += 0.015;
-    h.rotation.x += 0.007;
+  // VFX Updates
+  activeLasers.forEach((l, i) => {
+    l.scale *= 0.7;
+    l.mesh.scale.set(0.04 * l.scale, 0.04 * l.scale, l.mesh.scale.z);
+    if (l.scale < 0.05) { scene.remove(l.mesh); activeLasers.splice(i, 1); }
+  });
+  explosionParticles.forEach((p, i) => {
+    p.mesh.position.x += p.vx * dt; p.mesh.position.y += p.vy * dt; p.mesh.position.z += p.vz * dt;
+    p.scale -= p.decay; p.mesh.scale.set(p.scale, p.scale, p.scale);
+    if (p.scale <= 0) { scene.remove(p.mesh); explosionParticles.splice(i, 1); }
   });
 
   animationFrameId = requestAnimationFrame(animate);
 }
 
-// ==================== TYPING COMBAT CONTROLLER ====================
+// ==================== TYPING LOGIC ====================
 window.addEventListener('keydown', (e) => {
-  // Ignore typing inside auth inputs!
-  if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-    return;
-  }
-
+  if (document.activeElement.tagName === 'INPUT') return;
   if (!isPlaying) return;
+  if (e.key.startsWith('Arrow')) { activeKeys[e.key] = true; return; }
 
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-    activeKeys[e.key] = true;
-    e.preventDefault();
-    return;
-  }
-
-  const key = e.key.toLowerCase();
-  if (key.length !== 1 || key < 'a' || key > 'z') {
-    return;
-  }
+  const char = e.key.toLowerCase();
+  if (char.length !== 1) return;
 
   if (!activeTarget) {
-    const matches = activeZombies.filter(z => z.word[z.activeCharIndex] === key);
-    if (matches.length > 0) {
-      matches.sort((a, b) => a.mesh.position.distanceTo(playerPosition) - b.mesh.position.distanceTo(playerPosition));
-      
-      activeTarget = matches[0];
+    const target = activeZombies.find(z => z.word[0] === char);
+    if (target) {
+      activeTarget = target;
       activeTarget.activeCharIndex = 1;
       SoundSynth.playClick();
-
-      activeTarget.mesh.traverse(child => {
-        if (child.isMesh && child.name === "core") {
-          child.material.color.setHex(0xffcb05); // Highlight locked yellow
-        }
-      });
-
       updateLabelsHTML();
-      updateWordInputHUD();
     } else {
       SoundSynth.playError();
-      triggerCameraShake(0.18, 0.15);
-      flashActiveInputBorder();
     }
   } else {
-    const nextChar = activeTarget.word[activeTarget.activeCharIndex];
-    if (key === nextChar) {
+    if (activeTarget.word[activeTarget.activeCharIndex] === char) {
       activeTarget.activeCharIndex++;
       SoundSynth.playClick();
-
       if (activeTarget.activeCharIndex === activeTarget.word.length) {
-        const zombiePos = activeTarget.mesh.position.clone();
-        zombiePos.y += 0.5;
-        
-        spawn3DLaser(zombiePos);
-        spawnExplosionVFX(zombiePos, 0x39ff14);
-        SoundSynth.playLaser();
+        // Kill
+        spawn3DLaser(activeTarget.mesh.position);
+        spawnExplosionVFX(activeTarget.mesh.position, 0x39ff14);
         SoundSynth.playExplosion();
+        
+        // Progression
+        playerXP++;
+        if (z.type === 'lexicographer') { lives = Math.min(5, lives + 1); } // Bonus life/health
 
-        cleanupZombie(activeTarget);
-        const idx = activeZombies.indexOf(activeTarget);
-        if (idx !== -1) {
-          activeZombies.splice(idx, 1);
+        if (playerXP >= 10) {
+          playerLevel++;
+          playerXP = 0;
+          currentWave++;
+          spawnInterval = Math.max(1000, spawnInterval - 500);
         }
 
-        activeTarget = null;
         kills++;
-
-        if (kills > 0 && kills % 10 === 0) {
-          currentLevel++;
-          spawnInterval = Math.max(1500, spawnInterval - 700);
-          triggerAnnounce(`LEVEL ${currentLevel}: HAZARD INCREASES!`);
-          syncScoreToSupabase();
-        } else if (kills > 0 && kills % 5 === 0) {
-          syncScoreToSupabase();
-        }
-
+        cleanupZombie(activeTarget);
+        activeZombies.splice(activeZombies.indexOf(activeTarget), 1);
+        activeTarget = null;
         updateHUD();
-        updateWordInputHUD();
-      } else {
-        updateLabelsHTML();
-        updateWordInputHUD();
       }
+      updateLabelsHTML();
     } else {
       SoundSynth.playError();
-      triggerCameraShake(0.18, 0.15);
-      flashActiveInputBorder();
     }
   }
 });
 
-window.addEventListener('keyup', (e) => {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-    activeKeys[e.key] = false;
-  }
-});
+window.addEventListener('keyup', (e) => { if (e.key.startsWith('Arrow')) activeKeys[e.key] = false; });
 
 function updateLabelsHTML() {
   activeZombies.forEach(z => {
     if (z.labelElement) {
-      const pill = z.labelElement.querySelector('.css2d-pill');
-      const textSpan = pill.querySelector('span');
-
+      const span = z.labelElement.querySelector('.css2d-en-text');
       if (activeTarget === z) {
-        pill.classList.add('locked-target');
-        
-        let htmlStr = '';
-        const w = z.word.toUpperCase();
-        for (let i = 0; i < w.length; i++) {
-          if (i < z.activeCharIndex) {
-            htmlStr += `<span class="letter-correct">${w[i]}</span>`;
-          } else {
-            htmlStr += `<span class="letter-remaining">${w[i]}</span>`;
-          }
+        let h = '';
+        for (let i = 0; i < z.word.length; i++) {
+          h += `<span style="color:${i < z.activeCharIndex ? '#00f0ff' : '#ffffff'}">${z.word[i].toUpperCase()}</span>`;
         }
-        textSpan.innerHTML = htmlStr;
+        span.innerHTML = h;
       } else {
-        pill.classList.remove('locked-target');
-        textSpan.innerText = z.word.toUpperCase();
+        span.innerText = z.word.toUpperCase();
+        span.style.color = '#ffffff';
       }
     }
   });
 }
 
-function updateWordInputHUD() {
-  const container = document.getElementById('activeInputContainer');
-  if (activeTarget) {
-    container.style.opacity = '1';
-    container.style.transform = 'scale(1)';
-    
-    const display = document.getElementById('targetWordDisplay');
-    let htmlStr = '';
-    const w = activeTarget.word.toUpperCase();
-    for (let i = 0; i < w.length; i++) {
-      if (i < activeTarget.activeCharIndex) {
-        htmlStr += `<span class="letter-correct">${w[i]}</span>`;
-      } else {
-        htmlStr += `<span class="letter-remaining">${w[i]}</span>`;
-      }
-    }
-    display.innerHTML = htmlStr;
-    document.getElementById('targetTransDisplay').innerText = activeTarget.translation;
-  } else {
-    container.style.opacity = '0';
-    container.style.transform = 'scale(0.9)';
-  }
-}
-
-function flashActiveInputBorder() {
-  const container = document.getElementById('activeInputContainer');
-  if (container) {
-    container.classList.remove('border-white/15');
-    container.classList.add('border-red-500/80');
-    setTimeout(() => {
-      container.classList.remove('border-red-500/80');
-      container.classList.add('border-white/15');
-    }, 180);
-  }
-}
-
-// ==================== BIND UI CLICKS & EVENT TRIGGERS ====================
-let authMode = 'login'; // 'login' or 'register'
-
+// ==================== UI LISTENERS ====================
 function setupUIListeners() {
-  // Auth Tab Toggles
-  const tabLoginBtn = document.getElementById('tabLoginBtn');
-  const tabRegisterBtn = document.getElementById('tabRegisterBtn');
-  const usernameInputWrapper = document.getElementById('usernameInputWrapper');
-  const authSubmitBtn = document.getElementById('authSubmitBtn');
+  const bind = (id, evt, fn) => { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); };
+  
+  bind('authSubmitBtn', 'click', () => handleAuthAction(authMode));
+  bind('guestPlayBtn', 'click', () => { currentUser = { id: 'guest' }; transitionToApp(true); initializeGame(); });
+  bind('playBtn', 'click', () => document.getElementById('categoryScreen').classList.remove('hidden'));
+  bind('startCategoryMatchBtn', 'click', startMatch);
+  bind('defeatExitBtn', 'click', () => { document.getElementById('matchView').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); });
 
-  if (tabLoginBtn) {
-    tabLoginBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      authMode = 'login';
-      tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-      if (tabRegisterBtn) tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-      if (usernameInputWrapper) usernameInputWrapper.classList.add('hidden');
-      if (authSubmitBtn) authSubmitBtn.innerText = "AUTHENTICATE ACCESS";
-    });
-  }
-
-  if (tabRegisterBtn) {
-    tabRegisterBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      authMode = 'register';
-      tabRegisterBtn.className = "flex-1 pb-2 border-b-2 border-brawlCyan text-brawlCyan text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-      if (tabLoginBtn) tabLoginBtn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-300 text-sm font-bold tracking-wider uppercase text-center focus:outline-none";
-      if (usernameInputWrapper) usernameInputWrapper.classList.remove('hidden');
-      if (authSubmitBtn) authSubmitBtn.innerText = "INITIALIZE PROFILE";
-    });
-  }
-
-  // Submit credentials button
-  if (authSubmitBtn) {
-    authSubmitBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      handleAuthAction(authMode);
-    });
-  }
-
-  // Guest Play Button
-  const guestPlayBtn = document.getElementById('guestPlayBtn');
-  if (guestPlayBtn) {
-    guestPlayBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      currentUser = {
-        id: 'guest',
-        email: 'guest@matrix.net',
-        user_metadata: { username: 'Guest Runner' }
-      };
-      initializeGame();
-      transitionToApp(true);
-      loadUserProfile();
-    });
-  }
-
-  // Logout button
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      SoundSynth.playClick();
-      if (!supabase || (currentUser && currentUser.id === 'guest')) {
-        currentUser = null;
-        transitionToApp(false);
-        return;
-      }
-      const { error } = await supabase.auth.signOut();
-      if (error) console.error("SignOut error:", error.message);
-    });
-  }
-
-  // Interactive profile username customizer (allows editing guest or auth usernames on click)
-  const userProfileBadge = document.getElementById('userProfileBadge');
-  if (userProfileBadge) {
-    userProfileBadge.style.cursor = 'pointer';
-    userProfileBadge.title = "Click to change cyber alias";
-    userProfileBadge.addEventListener('click', async () => {
-      const nameEl = document.getElementById('userName');
-      const avatarEl = document.getElementById('userAvatar');
-      if (!nameEl) return;
-      
-      const currentName = nameEl.innerText;
-      const newName = prompt("Enter your new cyber alias:", currentName);
-      if (newName && newName.trim() !== '' && newName.trim().toUpperCase() !== currentName) {
-        const cleanedName = newName.trim().substring(0, 15);
-        nameEl.innerText = cleanedName.toUpperCase();
-        if (avatarEl) {
-          avatarEl.src = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanedName)}`;
-        }
-        
-        if (supabase && currentUser && currentUser.id !== 'guest') {
-          try {
-            // Update in Supabase Auth user_metadata (always allowed for authenticated users)
-            const { data, error } = await supabase.auth.updateUser({
-              data: { username: cleanedName }
-            });
-            if (error) throw error;
-            currentUser = data.user;
-            
-            // Also attempt to upsert to profiles table (in case RLS permits writes)
-            await supabase.from('profiles').upsert({
-              id: currentUser.id,
-              username: cleanedName,
-              score: highScore
-            });
-          } catch (e) {
-            console.warn("Failed to update database profile record (metadata fallback updated):", e.message);
-          }
-        } else {
-          // Store guest username prefix locally in localStorage
-          storage.setItem('guest_username', cleanedName);
-        }
-      }
-    });
-  }
-
-  // Leaderboard togglers
-  const leaderboardBtn = document.getElementById('leaderboardBtn');
-  if (leaderboardBtn) {
-    leaderboardBtn.addEventListener('click', () => {
-      const leaderboardModal = document.getElementById('leaderboardModal');
-      if (leaderboardModal) leaderboardModal.classList.remove('hidden');
-      SoundSynth.playClick();
-      fetchAndRenderLeaderboard();
-    });
-  }
-
-  const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
-  if (closeLeaderboardBtn) {
-    closeLeaderboardBtn.addEventListener('click', () => {
-      const leaderboardModal = document.getElementById('leaderboardModal');
-      if (leaderboardModal) leaderboardModal.classList.add('hidden');
-      SoundSynth.playClick();
-    });
-  }
-
-  // Enter city → category selection
-  const playBtn = document.getElementById('playBtn');
-  if (playBtn) {
-    playBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      showCategoryScreen();
-    });
-  }
-
-  document.querySelectorAll('.category-card').forEach((card) => {
+  document.querySelectorAll('.category-card').forEach(card => {
     card.addEventListener('click', () => {
-      SoundSynth.playClick();
-      selectedCategory = card.dataset.category || 'all';
-      updateCategoryCardSelection();
+      currentLevelTheme = card.dataset.category === 'city' ? 'city' : (card.dataset.category === 'nature' ? 'forest' : 'factory');
+      document.querySelectorAll('.category-card').forEach(c => c.classList.remove('border-brawlCyan'));
+      card.classList.add('border-brawlCyan');
     });
-  });
-
-  const startCategoryMatchBtn = document.getElementById('startCategoryMatchBtn');
-  if (startCategoryMatchBtn) {
-    startCategoryMatchBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      startMatch();
-    });
-  }
-
-  const backToMenuFromCategoryBtn = document.getElementById('backToMenuFromCategoryBtn');
-  if (backToMenuFromCategoryBtn) {
-    backToMenuFromCategoryBtn.addEventListener('click', () => {
-      SoundSynth.playClick();
-      hideCategoryScreenToMenu();
-    });
-  }
-
-  // Resume blocker lock button
-  const resumeLockBtn = document.getElementById('resumeLockBtn');
-  if (resumeLockBtn) {
-    resumeLockBtn.addEventListener('click', () => {
-      controls.lock();
-    });
-  }
-
-  // surrenders
-  const exitMatchBtn = document.getElementById('exitMatchBtn');
-  if (exitMatchBtn) {
-    exitMatchBtn.addEventListener('click', () => {
-      exitMatchToMenu();
-    });
-  }
-
-  document.getElementById('defeatExitBtn').addEventListener('click', () => {
-    SoundSynth.playClick();
-    exitMatchToMenu();
   });
 }
 
-// ==================== INITIALIZATION ====================
-window.addEventListener('DOMContentLoaded', () => {
-  // Establish Secure Session hooks (which will trigger initializeGame() once session is checked)
-  setupSessionManager();
-});
+async function handleAuthAction(mode) {
+  const email = document.getElementById('authEmailInput').value;
+  const pass = document.getElementById('authPasswordInput').value;
+  if (mode === 'register') await supabase.auth.signUp({ email, password: pass });
+  else await supabase.auth.signInWithPassword({ email, password: pass });
+}
+
+function showAlert(t, c) { const a = document.getElementById('authAlert'); a.innerText = t; a.className = c; a.classList.remove('hidden'); }
+
+window.addEventListener('DOMContentLoaded', setupSessionManager);
