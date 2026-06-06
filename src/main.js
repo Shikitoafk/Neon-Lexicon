@@ -2129,3 +2129,132 @@ function spawnAdvancedEnemy(waveNumber, scene, position) {
 
     return new Enemy(scene, position);
 }
+
+// AI Agent addition
+// --- Системы прогрессии и уровней ---
+const progression = {
+    xp: 0,
+    level: 1,
+    nextLevelXp: 100,
+    lives: 3,
+    unlockedUpgrades: [],
+    
+    addExperience(amount) {
+        this.xp += amount;
+        if (this.xp >= this.nextLevelXp) {
+            this.levelUp();
+        }
+    },
+    
+    levelUp() {
+        this.level++;
+        this.xp -= this.nextLevelXp;
+        this.nextLevelXp = Math.floor(this.nextLevelXp * 1.5);
+        console.log(`Level Up! Current Level: ${this.level}`);
+        // Логика разблокировки способностей
+        if (this.level % 2 === 0) this.unlockedUpgrades.push('FasterShots');
+    }
+};
+
+// --- Сложность слов ---
+const WORD_DIFFICULTY = {
+    BEGINNER: { minLevel: 1, maxLevel: 5, words: ["CAT", "DOG", "SUN", "RUN", "FAST", "BOX", "RED", "MAP"] },
+    INTERMEDIATE: { minLevel: 6, maxLevel: 10, words: ["PLANET", "SYSTEM", "BRIDGE", "GALAXY", "DANGER", "ACTION"] },
+    ADVANCED: { minLevel: 11, maxLevel: 20, words: ["ALGORITHM", "TOPOLOGY", "RECURSION", "PROTOCOL", "DYNAMIC"] },
+    EXPERT: { minLevel: 21, maxLevel: 30, words: ["ANACHRONISM", "EPHEMERAL", "PROLIFIC", "UBIQUITOUS"] },
+    CHALLENGE: { minLevel: 31, maxLevel: 999, words: ["ANTIDISESTABLISHMENTARIANISM", "SESQUIPEDALIAN"] }
+};
+
+function getWordByPlayerLevel(playerLevel) {
+    let category = "BEGINNER";
+    if (playerLevel > 30) category = "CHALLENGE";
+    else if (playerLevel > 20) category = "EXPERT";
+    else if (playerLevel > 10) category = "ADVANCED";
+    else if (playerLevel > 5) category = "INTERMEDIATE";
+    
+    const bank = WORD_DIFFICULTY[category].words;
+    return bank[Math.floor(Math.random() * bank.length)];
+}
+
+// --- Новые типы врагов ---
+class QuickLearnerEnemy extends Enemy {
+    constructor(scene, x, z) {
+        super(scene, x, z);
+        this.failureCount = 0;
+        this.color = 0x00ff00; // Зеленый неон
+    }
+
+    onEscaped() {
+        // Если враг не убит и "ушел", при следующем появлении он слабее
+        this.failureCount++;
+        this.speed *= 0.8; 
+    }
+}
+
+class EliteEnemy extends Enemy {
+    constructor(scene, x, z) {
+        super(scene, x, z);
+        this.hp = 3; // Требует 3 слова или очень длинное слово
+        this.scale = 2;
+        this.color = 0xff00ff; // Фиолетовый неон
+        this.word = getWordByPlayerLevel(progression.level + 5); // Всегда сложнее
+    }
+}
+
+class MimicEnemy extends Enemy {
+    constructor(scene, x, z) {
+        super(scene, x, z);
+        this.isActive = false;
+        this.activationTimer = Math.random() * 5000 + 2000;
+        this.mesh.material.opacity = 0.5; // Выглядит как декор
+    }
+
+    update(delta) {
+        if (!this.isActive) {
+            this.activationTimer -= delta;
+            if (this.activationTimer <= 0) {
+                this.isActive = true;
+                this.mesh.material.opacity = 1.0;
+                this.color = 0xffa500; // Оранжевый при активации
+            }
+            return;
+        }
+        super.update(delta);
+    }
+}
+
+// --- Конфигурация уровней и волн ---
+const LEVEL_CONFIGS = [
+    { name: "Лабиринт", waves: 3, qlFreq: 0.2, eliteFreq: 0, mimicFreq: 0, bossEvery: 5 },
+    { name: "Школа", waves: 4, qlFreq: 0.1, eliteFreq: 0.1, mimicFreq: 0, bossEvery: 6 },
+    { name: "Фабрика", waves: 5, qlFreq: 0.1, eliteFreq: 0.1, mimicFreq: 0.2, bossEvery: 7 },
+    { name: "Метеор", waves: 6, qlFreq: 0.15, eliteFreq: 0.2, mimicFreq: 0.1, bossEvery: 5 },
+    { name: "Чёрная дыра", waves: Infinity, qlFreq: 0.2, eliteFreq: 0.3, mimicFreq: 0.2, bossEvery: 1 }
+];
+
+function spawnWave(levelIdx, waveIdx) {
+    const config = LEVEL_CONFIGS[levelIdx];
+    const isBossWave = (waveIdx + 1) % config.bossEvery === 0;
+    
+    let enemyCount = 5 + waveIdx * 2;
+    if (isBossWave) enemyCount += 5;
+
+    for (let i = 0; i < enemyCount; i++) {
+        let rand = Math.random();
+        let enemy;
+
+        if (isBossWave) {
+            // В босс-волне смесь сильных врагов
+            if (rand < 0.4) enemy = new EliteEnemy(scene, ...getSpawnCoords());
+            else if (rand < 0.7) enemy = new QuickLearnerEnemy(scene, ...getSpawnCoords());
+            else enemy = new MimicEnemy(scene, ...getSpawnCoords());
+        } else {
+            // Обычная волна
+            if (rand < config.qlFreq) enemy = new QuickLearnerEnemy(scene, ...getSpawnCoords());
+            else if (rand < config.qlFreq + config.eliteFreq) enemy = new EliteEnemy(scene, ...getSpawnCoords());
+            else if (rand < config.qlFreq + config.eliteFreq + config.mimicFreq) enemy = new MimicEnemy(scene, ...getSpawnCoords());
+            else enemy = new Enemy(scene, ...getSpawnCoords());
+        }
+        enemies.push(enemy);
+    }
+}
