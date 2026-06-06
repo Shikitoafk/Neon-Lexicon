@@ -1951,3 +1951,95 @@ window.addEventListener('DOMContentLoaded', () => {
   // Establish Secure Session hooks (which will trigger initializeGame() once session is checked)
   setupSessionManager();
 });
+
+
+// AI Agent addition
+// --- Системы прогрессии и состояния ---
+let killCount = 0;
+let experience = 0;
+let playerLevel = 1;
+let currentDifficulty = 'Beginner';
+
+const DIFFICULTY_LEVELS = {
+    Beginner: { speedMult: 1.0, spawnRate: 3000, wordLength: [3, 5], xpMult: 1 },
+    Intermediate: { speedMult: 1.2, spawnRate: 2500, wordLength: [5, 8], xpMult: 1.5 },
+    Advanced: { speedMult: 1.5, spawnRate: 2000, wordLength: [8, 12], xpMult: 2.5 },
+    Expert: { speedMult: 2.0, spawnRate: 1500, wordLength: [10, 15], xpMult: 5.0 }
+};
+
+const ENEMY_TYPES = {
+    ROOKIE: { hp: 1, speed: 0.02, scale: 1, color: 0x00ff00, label: 'Rookie' },
+    ELITE: { hp: 2, speed: 0.04, scale: 1.3, color: 0x00ffff, label: 'Elite' },
+    MUTANT: { hp: 3, speed: 0.03, scale: 1.5, color: 0xff00ff, label: 'Mutant' },
+    BOSS: { hp: 10, speed: 0.01, scale: 3.0, color: 0xff0000, label: 'BOSS' }
+};
+
+const BONUS_TYPES = {
+    DICTIONARY_DASH: { duration: 5000, effect: 'slow_enemies', color: 0xffff00 },
+    NOUN_NITRO: { duration: 8000, effect: 'shield', color: 0x0000ff }
+};
+
+// --- Функции игровых механик ---
+
+function updateProgression(xpGained) {
+    experience += xpGained;
+    killCount++;
+    
+    // Повышение уровня игрока (каждые 1000 XP)
+    const newLevel = Math.floor(experience / 1000) + 1;
+    if (newLevel > playerLevel) {
+        playerLevel = newLevel;
+        console.log(`Level Up! Current Level: ${playerLevel}`);
+        adjustDifficulty();
+    }
+}
+
+function adjustDifficulty() {
+    if (playerLevel > 15) currentDifficulty = 'Expert';
+    else if (playerLevel > 10) currentDifficulty = 'Advanced';
+    else if (playerLevel > 5) currentDifficulty = 'Intermediate';
+}
+
+function spawnBonus(position) {
+    const chance = Math.random();
+    if (chance > 0.85) { // 15% шанс выпадения бонуса
+        const types = Object.keys(BONUS_TYPES);
+        const typeKey = types[Math.floor(Math.random() * types.length)];
+        const bonusData = BONUS_TYPES[typeKey];
+        
+        createBonusMesh(position, bonusData, typeKey);
+    }
+}
+
+function applyBonus(typeKey) {
+    const bonus = BONUS_TYPES[typeKey];
+    console.log(`Activated: ${typeKey}`);
+    
+    if (typeKey === 'DICTIONARY_DASH') {
+        // Временное замедление всех врагов
+        enemies.forEach(e => e.speed *= 0.5);
+        setTimeout(() => enemies.forEach(e => e.speed *= 2), bonus.duration);
+    } else if (typeKey === 'NOUN_NITRO') {
+        // Временный щит
+        player.hasShield = true;
+        setTimeout(() => player.hasShield = false, bonus.duration);
+    }
+}
+
+function getEnemyConfig() {
+    const rand = Math.random();
+    if (playerLevel >= 10 && rand > 0.95) return ENEMY_TYPES.BOSS;
+    if (playerLevel >= 5 && rand > 0.8) return ENEMY_TYPES.MUTANT;
+    if (playerLevel >= 3 && rand > 0.6) return ENEMY_TYPES.ELITE;
+    return ENEMY_TYPES.ROOKIE;
+}
+
+function onEnemyKilled(enemy) {
+    const xpReward = (enemy.maxHp * 10) * DIFFICULTY_LEVELS[currentDifficulty].xpMult;
+    updateProgression(xpReward);
+    spawnBonus(enemy.mesh.position);
+    
+    // UI обновление (предполагается наличие элементов в DOM)
+    document.getElementById('kill-count').innerText = `Kills: ${killCount}`;
+    document.getElementById('player-level').innerText = `Level: ${playerLevel}`;
+}
