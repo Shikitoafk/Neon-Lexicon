@@ -2043,3 +2043,89 @@ function onEnemyKilled(enemy) {
     document.getElementById('kill-count').innerText = `Kills: ${killCount}`;
     document.getElementById('player-level').innerText = `Level: ${playerLevel}`;
 }
+
+// AI Agent addition
+// Система отслеживания частоты слов для адаптации врагов
+const wordUsageStats = new Map();
+
+function trackWordUsage(word) {
+    const count = wordUsageStats.get(word) || 0;
+    wordUsageStats.set(word, count + 1);
+}
+
+// Класс "Быстрый ученик" - адаптируется к часто используемым словам
+class QuickLearnerEnemy extends Enemy {
+    constructor(scene, position) {
+        super(scene, position);
+        this.color = 0x00ffcc; // Бирюзовый неон
+        this.baseSpeed *= 1.5;
+        this.resistanceMap = new Map();
+    }
+
+    updateResistance() {
+        wordUsageStats.forEach((count, word) => {
+            // Если слово использовано более 3 раз, враг получает щит от него
+            if (count > 3) {
+                this.resistanceMap.set(word, Math.min(0.9, (count - 3) * 0.2));
+            }
+        });
+    }
+
+    takeDamage(word, amount) {
+        const resistance = this.resistanceMap.get(word) || 0;
+        const finalDamage = amount * (1 - resistance);
+        super.takeDamage(word, finalDamage);
+        
+        // Визуальный эффект адаптации
+        if (resistance > 0.5) {
+            this.showShieldEffect();
+        }
+    }
+}
+
+// Класс "Босс" - требует ввода последовательности слов
+class LexiconBoss extends Enemy {
+    constructor(scene, position, wordSequence) {
+        super(scene, position);
+        this.wordSequence = wordSequence; // Массив строк, например ['NEON', 'VOID', 'CORE']
+        this.currentWordIndex = 0;
+        this.isBoss = true;
+        this.mesh.scale.set(4, 4, 4); // Босс значительно крупнее
+        this.hp = wordSequence.length;
+    }
+
+    onWordInput(inputWord) {
+        const targetWord = this.wordSequence[this.currentWordIndex];
+        
+        if (inputWord.toUpperCase() === targetWord.toUpperCase()) {
+            this.currentWordIndex++;
+            this.playHitAnimation();
+            
+            if (this.currentWordIndex >= this.wordSequence.length) {
+                this.die();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    updateFloatingText() {
+        // Отображает текущее слово из последовательности над боссом
+        const nextWord = this.wordSequence[this.currentWordIndex];
+        this.label.text = `BOSS: ${nextWord}`;
+    }
+}
+
+// Логика спавна в зависимости от прогресса
+function spawnAdvancedEnemy(waveNumber, scene, position) {
+    if (waveNumber % 10 === 0) {
+        const bossWords = ['CYBER', 'STORM', 'PROTOCOL', 'OVERRIDE'];
+        return new LexiconBoss(scene, position, bossWords);
+    } 
+    
+    if (waveNumber > 5 && Math.random() > 0.7) {
+        return new QuickLearnerEnemy(scene, position);
+    }
+
+    return new Enemy(scene, position);
+}
