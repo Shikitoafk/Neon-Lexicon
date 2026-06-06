@@ -2258,3 +2258,97 @@ function spawnWave(levelIdx, waveIdx) {
         enemies.push(enemy);
     }
 }
+
+// AI Agent addition
+const progressionSystem = {
+    xp: 0,
+    level: 1,
+    killStreak: 0,
+    rank: "Новичок",
+    ranks: ["Новичок", "Прорыв", "Мастер", "Легенда"],
+    
+    addXp(amount) {
+        this.xp += amount;
+        const nextLevelXp = this.level * 1000;
+        if (this.xp >= nextLevelXp) {
+            this.levelUp();
+        }
+    },
+
+    levelUp() {
+        this.level++;
+        this.xp = 0;
+        this.rank = this.ranks[Math.min(Math.floor(this.level / 5), this.ranks.length - 1)];
+        console.log(`Level Up! Current Rank: ${this.rank}`);
+        // Применяем бонусы категории
+        player.speed *= 1.1; 
+    }
+};
+
+const difficultyManager = {
+    getWordConstraints(level) {
+        if (level <= 3) return { min: 4, max: 6, syllables: 3 };
+        if (level <= 6) return { min: 5, max: 7, syllables: 4 };
+        return { 
+            min: 5 + Math.floor(level / 4), 
+            max: 7 + Math.floor(level / 3), 
+            syllables: 4 + Math.floor(level / 5) 
+        };
+    },
+
+    getRandomWord(constraints) {
+        const filtered = wordList.filter(w => 
+            w.length >= constraints.min && 
+            w.length <= constraints.max
+        );
+        return filtered[Math.floor(Math.random() * filtered.length)];
+    }
+};
+
+const waveController = {
+    currentWave: 1,
+    enemiesInWave: 0,
+    isBossWave: false,
+    timer: 0,
+
+    update(dt) {
+        this.timer += dt;
+    },
+
+    checkEliteSpawn(enemiesKilled) {
+        return (this.currentWave % 3 === 0) || (enemiesKilled > 0 && enemiesKilled % 10 === 0);
+    },
+
+    spawnEnemy(isElite = false) {
+        const constraints = difficultyManager.getWordConstraints(this.currentWave);
+        const word = difficultyManager.getRandomWord(constraints);
+        
+        const enemyData = {
+            word: word,
+            hp: isElite ? 3 : 1,
+            speed: isElite ? 2.5 : 1.5,
+            isElite: isElite,
+            xpValue: isElite ? 50 : 10
+        };
+        
+        return enemyData;
+    }
+};
+
+function handleEnemyDeath(enemy) {
+    progressionSystem.addXp(enemy.xpValue);
+    progressionSystem.killStreak++;
+    
+    if (waveController.enemiesInWave <= 0) {
+        startNextWave();
+    }
+}
+
+function startNextWave() {
+    waveController.currentWave++;
+    waveController.isBossWave = waveController.currentWave % 5 === 0;
+    
+    if (waveController.isBossWave) {
+        spawnBoss();
+    }
+}
