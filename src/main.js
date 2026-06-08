@@ -883,6 +883,16 @@ function checkPlayerCollision(newPos) {
   return false;
 }
 
+function checkDroneCollision(position) {
+  for (let box of buildingBoundingBoxes) {
+    const expandedBox = box.clone().expandByScalar(1.5);
+    if (expandedBox.containsPoint(position)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // VFX
 function spawn3DLaser(endPos) {
   const startPos = new THREE.Vector3(camera.position.x, camera.position.y - 0.25, camera.position.z);
@@ -1534,7 +1544,30 @@ function animate() {
     direction.y = 0;
     direction.normalize();
     
-    z.mesh.position.addScaledVector(direction, z.speed * dt);
+    const newDronePos = z.mesh.position.clone();
+    newDronePos.addScaledVector(direction, z.speed * dt);
+    newDronePos.y = 1.25 + bobOffset;
+
+    if (!checkDroneCollision(newDronePos)) {
+      z.mesh.position.copy(newDronePos);
+    } else {
+      // try sliding along X axis
+      const slideX = z.mesh.position.clone();
+      slideX.x = newDronePos.x;
+      slideX.y = 1.25 + bobOffset;
+      if (!checkDroneCollision(slideX)) {
+        z.mesh.position.copy(slideX);
+      } else {
+        // try sliding along Z axis
+        const slideZ = z.mesh.position.clone();
+        slideZ.z = newDronePos.z;
+        slideZ.y = 1.25 + bobOffset;
+        if (!checkDroneCollision(slideZ)) {
+          z.mesh.position.copy(slideZ);
+        }
+      }
+    }
+
     z.mesh.position.y = 1.25 + bobOffset;
 
     const dist = z.mesh.position.distanceTo(playerPosition);
