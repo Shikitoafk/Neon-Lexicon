@@ -333,6 +333,21 @@ let spawnInterval = 4000;
 // Bounding helpers
 let buildingBoundingBoxes = [];
 let buildingHolograms = [];
+let droneExpandedBoxes = [];
+
+// Reusable Three.js math objects to prevent garbage collection frame stutters
+const _tempForward = new THREE.Vector3();
+const _tempRight = new THREE.Vector3();
+const _tempDir = new THREE.Vector3();
+const _tempCenter = new THREE.Vector3();
+const _playerMin = new THREE.Vector3();
+const _playerMax = new THREE.Vector3();
+const _playerBox = new THREE.Box3();
+const _tempNewPos = new THREE.Vector3();
+const _tempSlide = new THREE.Vector3();
+const _droneDir = new THREE.Vector3();
+const _droneNewPos = new THREE.Vector3();
+const _droneSlide = new THREE.Vector3();
 
 // ==================== DEFERRED GAME INITIALIZATION (Ref-Lock Resolution) ====================
 let isGameInitialized = false;
@@ -560,6 +575,7 @@ function createCity() {
 
   buildingBoundingBoxes = [];
   buildingHolograms = [];
+  droneExpandedBoxes = [];
 
   const neonColors = [0x00f0ff, 0xff007f, 0x39ff14, 0xffcb05];
   
@@ -587,6 +603,7 @@ function createCity() {
     // Bounding Box (recomputes based on current scale)
     const box = new THREE.Box3().setFromObject(building);
     buildingBoundingBoxes.push(box);
+    droneExpandedBoxes.push(box.clone().expandByScalar(1.5));
 
     // Neon pillars - Reuse boxGeoShared and pre-created neonMaterials
     const pipeColor = neonColors[Math.floor(Math.random() * neonColors.length)];
@@ -898,13 +915,12 @@ function cleanupZombie(z) {
 // Collisions
 function checkPlayerCollision(newPos) {
   const pSize = 0.8;
-  const pBox = new THREE.Box3(
-    new THREE.Vector3(newPos.x - pSize, 0, newPos.z - pSize),
-    new THREE.Vector3(newPos.x + pSize, 10, newPos.z + pSize)
-  );
+  _playerMin.set(newPos.x - pSize, 0, newPos.z - pSize);
+  _playerMax.set(newPos.x + pSize, 10, newPos.z + pSize);
+  _playerBox.set(_playerMin, _playerMax);
 
   for (let box of buildingBoundingBoxes) {
-    if (box.intersectsBox(pBox)) {
+    if (box.intersectsBox(_playerBox)) {
       return true;
     }
   }
@@ -912,9 +928,15 @@ function checkPlayerCollision(newPos) {
 }
 
 function checkDroneCollision(position) {
-  for (let box of buildingBoundingBoxes) {
-    const expandedBox = box.clone().expandByScalar(1.5);
-    if (expandedBox.containsPoint(position)) {
+  for (let i = 0; i < buildingBoundingBoxes.length; i++) {
+    const box = buildingBoundingBoxes[i];
+    box.getCenter(_tempCenter);
+    _tempCenter.y = position.y;
+    if (_tempCenter.distanceTo(position) > 30) {
+      continue;
+    }
+    const expandedBox = droneExpandedBoxes[i];
+    if (expandedBox && expandedBox.containsPoint(position)) {
       return true;
     }
   }
@@ -1483,42 +1505,42 @@ function animate() {
 
   // 1. Movement handling (Arrow Keys)
   const speed = 7.0;
-  const newPos = playerPosition.clone();
+  _tempNewPos.copy(playerPosition);
   
-  const forwardVec = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  forwardVec.y = 0;
-  forwardVec.normalize();
+  _tempForward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  _tempForward.y = 0;
+  _tempForward.normalize();
 
-  const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  rightVec.y = 0;
-  rightVec.normalize();
+  _tempRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  _tempRight.y = 0;
+  _tempRight.normalize();
 
   if (activeKeys['ArrowUp']) {
-    newPos.addScaledVector(forwardVec, speed * dt);
+    _tempNewPos.addScaledVector(_tempForward, speed * dt);
   }
   if (activeKeys['ArrowDown']) {
-    newPos.addScaledVector(forwardVec, -speed * dt);
+    _tempNewPos.addScaledVector(_tempForward, -speed * dt);
   }
   if (activeKeys['ArrowLeft']) {
-    newPos.addScaledVector(rightVec, -speed * dt);
+    _tempNewPos.addScaledVector(_tempRight, -speed * dt);
   }
   if (activeKeys['ArrowRight']) {
-    newPos.addScaledVector(rightVec, speed * dt);
+    _tempNewPos.addScaledVector(_tempRight, speed * dt);
   }
 
-  if (!checkPlayerCollision(newPos)) {
-    playerPosition.copy(newPos);
+  if (!checkPlayerCollision(_tempNewPos)) {
+    playerPosition.copy(_tempNewPos);
   } else {
     // slide
-    const slideX = playerPosition.clone();
-    slideX.x = newPos.x;
-    if (!checkPlayerCollision(slideX)) {
-      playerPosition.copy(slideX);
+    _tempSlide.copy(playerPosition);
+    _tempSlide.x = _tempNewPos.x;
+    if (!checkPlayerCollision(_tempSlide)) {
+      playerPosition.copy(_tempSlide);
     } else {
-      const slideZ = playerPosition.clone();
-      slideZ.z = newPos.z;
-      if (!checkPlayerCollision(slideZ)) {
-        playerPosition.copy(slideZ);
+      _tempSlide.copy(playerPosition);
+      _tempSlide.z = _tempNewPos.z;
+      if (!checkPlayerCollision(_tempSlide)) {
+        playerPosition.copy(_tempSlide);
       }
     }
   }
@@ -1568,30 +1590,30 @@ function animate() {
       proj.position.y = -(1.25 + bobOffset) + 0.02;
     }
     
-    const direction = new THREE.Vector3().subVectors(playerPosition, z.mesh.position);
-    direction.y = 0;
-    direction.normalize();
+    _droneDir.subVectors(playerPosition, z.mesh.position);
+    _droneDir.y = 0;
+    _droneDir.normalize();
     
-    const newDronePos = z.mesh.position.clone();
-    newDronePos.addScaledVector(direction, z.speed * dt);
-    newDronePos.y = 1.25 + bobOffset;
+    _droneNewPos.copy(z.mesh.position);
+    _droneNewPos.addScaledVector(_droneDir, z.speed * dt);
+    _droneNewPos.y = 1.25 + bobOffset;
 
-    if (!checkDroneCollision(newDronePos)) {
-      z.mesh.position.copy(newDronePos);
+    if (!checkDroneCollision(_droneNewPos)) {
+      z.mesh.position.copy(_droneNewPos);
     } else {
       // try sliding along X axis
-      const slideX = z.mesh.position.clone();
-      slideX.x = newDronePos.x;
-      slideX.y = 1.25 + bobOffset;
-      if (!checkDroneCollision(slideX)) {
-        z.mesh.position.copy(slideX);
+      _droneSlide.copy(z.mesh.position);
+      _droneSlide.x = _droneNewPos.x;
+      _droneSlide.y = 1.25 + bobOffset;
+      if (!checkDroneCollision(_droneSlide)) {
+        z.mesh.position.copy(_droneSlide);
       } else {
         // try sliding along Z axis
-        const slideZ = z.mesh.position.clone();
-        slideZ.z = newDronePos.z;
-        slideZ.y = 1.25 + bobOffset;
-        if (!checkDroneCollision(slideZ)) {
-          z.mesh.position.copy(slideZ);
+        _droneSlide.copy(z.mesh.position);
+        _droneSlide.z = _droneNewPos.z;
+        _droneSlide.y = 1.25 + bobOffset;
+        if (!checkDroneCollision(_droneSlide)) {
+          z.mesh.position.copy(_droneSlide);
         }
       }
     }
