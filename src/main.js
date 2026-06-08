@@ -877,7 +877,11 @@ function spawnZombie() {
     word: wordObj.en,
     translation: wordObj.ru,
     activeCharIndex: 0,
-    speed: baseSpeed
+    speed: baseSpeed,
+    // Cached child references — avoids getObjectByName scene-graph traversal every frame
+    haloMesh: ringMesh,
+    coreMesh: coreMesh,
+    projMesh: projMesh
   });
 }
 
@@ -1495,7 +1499,10 @@ function animate() {
 
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
-    labelRenderer.render(scene, camera);
+    // Only run CSS2D label renderer when there are active drones (saves cost on menu/idle)
+    if (isPlaying && activeZombies.length > 0) {
+      labelRenderer.render(scene, camera);
+    }
   }
 
   if (!isPlaying) {
@@ -1575,19 +1582,17 @@ function animate() {
     
     z.mesh.lookAt(playerPosition.x, z.mesh.position.y, playerPosition.z);
     
-    const halo = z.mesh.getObjectByName("halo");
-    if (halo) {
-      halo.rotation.z = time * 3.5 + i;
-      halo.rotation.y = Math.sin(time + i) * 0.4;
+    // Use cached child references instead of getObjectByName (eliminates scene-graph traversal per frame)
+    if (z.haloMesh) {
+      z.haloMesh.rotation.z = time * 3.5 + i;
+      z.haloMesh.rotation.y = Math.sin(time + i) * 0.4;
     }
-    const coreObj = z.mesh.getObjectByName("core");
-    if (coreObj) {
-      coreObj.rotation.y = -time * 2.0;
-      coreObj.rotation.x = Math.cos(time) * 0.2;
+    if (z.coreMesh) {
+      z.coreMesh.rotation.y = -time * 2.0;
+      z.coreMesh.rotation.x = Math.cos(time) * 0.2;
     }
-    const proj = z.mesh.getObjectByName("projection");
-    if (proj) {
-      proj.position.y = -(1.25 + bobOffset) + 0.02;
+    if (z.projMesh) {
+      z.projMesh.position.y = -(1.25 + bobOffset) + 0.02;
     }
     
     _droneDir.subVectors(playerPosition, z.mesh.position);
