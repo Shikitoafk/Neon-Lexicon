@@ -1,4 +1,8 @@
 import { supabase } from './supabase.js';
+import { inject } from '@vercel/analytics';
+
+// Initialize Vercel Analytics
+inject();
 
 // City of Words: Survival 3D - Three.js FPS Typing Engine with Supabase Auth & Profile Sync
 
