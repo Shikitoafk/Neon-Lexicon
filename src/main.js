@@ -901,18 +901,8 @@ function cleanupZombie(z) {
 
   if (z.mesh) {
     scene.remove(z.mesh);
-    z.mesh.traverse(child => {
-      if (child.isMesh) {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(m => m.dispose());
-          } else {
-            child.material.dispose();
-          }
-        }
-      }
-    });
+    // DO NOT traverse and dispose of geometries or materials here
+    // because they are globally shared assets initialized in initSharedAssets()!
   }
 }
 
@@ -1810,6 +1800,9 @@ function updateLabelsHTML() {
 function updateWordInputHUD() {
   const container = document.getElementById('activeInputContainer');
   if (activeTarget) {
+    container.classList.remove('hidden');
+    // Force reflow so transition plays correctly after display is changed from none to block
+    void container.offsetWidth;
     container.style.opacity = '1';
     container.style.transform = 'scale(1)';
     
@@ -1828,6 +1821,12 @@ function updateWordInputHUD() {
   } else {
     container.style.opacity = '0';
     container.style.transform = 'scale(0.9)';
+    // Hide the element after transition duration of 150ms to allow fade/scale animation
+    setTimeout(() => {
+      if (!activeTarget) {
+        container.classList.add('hidden');
+      }
+    }, 150);
   }
 }
 
