@@ -758,10 +758,38 @@ function spawnZombie() {
   if (pool.length === 0) return;
   const wordObj = pool[Math.floor(Math.random() * pool.length)];
 
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 35 + Math.random() * 25;
-  const zX = camera.position.x + Math.cos(angle) * dist;
-  const zZ = camera.position.z + Math.sin(angle) * dist;
+  let zX = 0;
+  let zZ = 0;
+  let validPositionFound = false;
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 35 + Math.random() * 25;
+    const testX = camera.position.x + Math.cos(angle) * dist;
+    const testZ = camera.position.z + Math.sin(angle) * dist;
+    const testPos = new THREE.Vector3(testX, 1.25, testZ);
+
+    let blocked = false;
+    for (let box of buildingBoundingBoxes) {
+      const expandedBox = box.clone().expandByScalar(2.0);
+      if (expandedBox.containsPoint(testPos)) {
+        blocked = true;
+        break;
+      }
+    }
+
+    if (!blocked) {
+      zX = testX;
+      zZ = testZ;
+      validPositionFound = true;
+      break;
+    }
+  }
+
+  if (!validPositionFound) {
+    console.warn("Could not find a clear spawn position for drone after 20 attempts. Skipping spawn.");
+    return;
+  }
 
   const zColor = currentLevel === 1 ? 0x39ff14 : (currentLevel === 2 ? 0xffcb05 : 0xff007f);
   
